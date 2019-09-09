@@ -16,18 +16,22 @@ namespace G9ScheduleManagement
         ///     Field Sorted dictionary for save Schedule items
         ///     Use for lock
         /// </summary>
-        private static SortedDictionary<Guid, G9ScheduleItem.G9ScheduleItem> _saveScheduleTask;
+        private static SortedDictionary<Guid, G9ScheduleItem.G9ScheduleItem> _saveScheduleTask =
+            new SortedDictionary<Guid, G9ScheduleItem.G9ScheduleItem>();
 
         /// <summary>
         ///     Sorted dictionary for save Schedule items
         /// </summary>
         private static SortedDictionary<Guid, G9ScheduleItem.G9ScheduleItem> SaveScheduleTask
         {
-            set => _saveScheduleTask = value;
             get
             {
                 lock (_saveScheduleTask)
                 {
+                    // if is null set new instance
+                    if (_saveScheduleTask == null)
+                        _saveScheduleTask = new SortedDictionary<Guid, G9ScheduleItem.G9ScheduleItem>();
+                    // return for use
                     return _saveScheduleTask;
                 }
             }
