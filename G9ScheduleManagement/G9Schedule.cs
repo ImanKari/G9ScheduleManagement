@@ -495,7 +495,7 @@ namespace G9ScheduleManagement
 
         private static async Task ScheduleHandler()
         {
-            var oTask = new Task(() =>
+            var oTask = Task.Run(() =>
             {
                 _waitForFinishScheduleHandler = true;
                 var currentDateTime = DateTime.Now;
