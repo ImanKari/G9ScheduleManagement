@@ -5,7 +5,9 @@ VisualStudioVersion = 16.0.29230.47
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "G9ScheduleManagement", "G9ScheduleManagement\G9ScheduleManagement.csproj", "{DEDE061D-C58B-4BF8-8E08-3C16A2DCE6ED}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "G9ScheduleNUnitTest", "G9ScheduleNUnitTest\G9ScheduleNUnitTest.csproj", "{13F6C1C9-2F9A-4864-BF9A-65835D5ECFFF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "G9ScheduleNUnitTest", "G9ScheduleNUnitTest\G9ScheduleNUnitTest.csproj", "{13F6C1C9-2F9A-4864-BF9A-65835D5ECFFF}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "G9ScheduleManagement.DotNetStandard.2.0", "G9ScheduleManagement.DotNetStandard.2.0\G9ScheduleManagement.DotNetStandard.2.0.csproj", "{6999C0C1-F230-4527-96D7-E023FBD54854}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{13F6C1C9-2F9A-4864-BF9A-65835D5ECFFF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{13F6C1C9-2F9A-4864-BF9A-65835D5ECFFF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{13F6C1C9-2F9A-4864-BF9A-65835D5ECFFF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6999C0C1-F230-4527-96D7-E023FBD54854}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6999C0C1-F230-4527-96D7-E023FBD54854}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6999C0C1-F230-4527-96D7-E023FBD54854}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6999C0C1-F230-4527-96D7-E023FBD54854}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
