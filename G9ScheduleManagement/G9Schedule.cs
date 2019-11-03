@@ -29,10 +29,9 @@ namespace G9ScheduleManagement
                 lock (_saveScheduleTask)
                 {
                     // if is null set new instance
-                    if (_saveScheduleTask == null)
-                        _saveScheduleTask = new SortedDictionary<Guid, G9ScheduleItem.G9ScheduleItem>();
+                    return _saveScheduleTask ??
+                           (_saveScheduleTask = new SortedDictionary<Guid, G9ScheduleItem.G9ScheduleItem>());
                     // return for use
-                    return _saveScheduleTask;
                 }
             }
         }
@@ -40,22 +39,18 @@ namespace G9ScheduleManagement
         /// <summary>
         ///     Specify enable Schedule count
         /// </summary>
+        // ReSharper disable once UnusedMember.Global
         public static int ScheduleItemCount => SaveScheduleTask.Count;
 
         /// <summary>
         ///     Save schedule for this class object
         /// </summary>
-        private G9ScheduleItem.G9ScheduleItem _ScheduleItem;
+        private G9ScheduleItem.G9ScheduleItem _scheduleItem;
 
         /// <summary>
         ///     Unique identity for schedule
         /// </summary>
         public Guid ScheduleIdentity { private set; get; }
-
-        /// <summary>
-        ///     Save remove items identity
-        /// </summary>
-        private static readonly Queue<Guid> _removeItemsIdentity = new Queue<Guid>();
 
         /// <summary>
         ///     Specify Schedule is active
@@ -70,7 +65,8 @@ namespace G9ScheduleManagement
         /// <summary>
         ///     Specify number of execution for this Schedule
         /// </summary>
-        public int NumberOfExecution => _ScheduleItem.PeriodCounter;
+        // ReSharper disable once UnusedMember.Global
+        public int NumberOfExecution => _scheduleItem.PeriodCounter;
 
         #endregion
 
@@ -89,11 +85,10 @@ namespace G9ScheduleManagement
             if (addNewSchedule)
             {
                 // Set Identity
-                _ScheduleItem = new G9ScheduleItem.G9ScheduleItem();
-                _ScheduleItem.Identity = ScheduleIdentity = Guid.NewGuid();
+                _scheduleItem = new G9ScheduleItem.G9ScheduleItem {Identity = ScheduleIdentity = Guid.NewGuid()};
 
                 // Add schedule
-                SaveScheduleTask.Add(ScheduleIdentity, _ScheduleItem);
+                SaveScheduleTask.Add(ScheduleIdentity, _scheduleItem);
             }
 
             if (!_activeSchedule)
@@ -114,6 +109,8 @@ namespace G9ScheduleManagement
                             await ScheduleHandler();
                             await Task.Delay(1);
                         }
+
+                    // ReSharper disable once FunctionNeverReturns
                 });
             }
         }
@@ -138,17 +135,17 @@ namespace G9ScheduleManagement
         ///     Constructor - Restore Schedule by identity
         ///     Initialize Requirement
         /// </summary>
-        /// <param name="ScheduleIdentity">Specify Schedule identity for restore enable Schedule</param>
+        /// <param name="scheduleIdentity">Specify Schedule identity for restore enable Schedule</param>
 
         #region G9Scheduled
 
-        public G9Schedule(Guid ScheduleIdentity)
+        public G9Schedule(Guid scheduleIdentity)
         {
-            if (!SaveScheduleTask.ContainsKey(ScheduleIdentity))
+            if (!SaveScheduleTask.ContainsKey(scheduleIdentity))
                 throw new Exception("Schedule not found!");
 
-            _ScheduleItem = SaveScheduleTask[ScheduleIdentity];
-            this.ScheduleIdentity = ScheduleIdentity;
+            _scheduleItem = SaveScheduleTask[scheduleIdentity];
+            ScheduleIdentity = scheduleIdentity;
 
             Initialize(false);
         }
@@ -169,7 +166,7 @@ namespace G9ScheduleManagement
             SaveScheduleTask.Remove(ScheduleIdentity);
 
             ScheduleIdentity = Guid.Empty;
-            _ScheduleItem = null;
+            _scheduleItem = null;
         }
 
         #endregion
@@ -182,7 +179,7 @@ namespace G9ScheduleManagement
 
         private void CheckValidation()
         {
-            if (_ScheduleItem == null) throw new Exception("Object Disposed!");
+            if (_scheduleItem == null) throw new Exception("Object Disposed!");
         }
 
         #endregion
@@ -513,7 +510,7 @@ namespace G9ScheduleManagement
                             if (g9ScheduledItem.Value.Period > 0 &&
                                 g9ScheduledItem.Value.PeriodCounter >= g9ScheduledItem.Value.Period)
                             {
-                                removeScheduleItem(g9ScheduledItem);
+                                RemoveScheduleItem(g9ScheduledItem);
                                 continue;
                             }
 
@@ -531,7 +528,7 @@ namespace G9ScheduleManagement
                             if (g9ScheduledItem.Value.FinishDateTime != DateTime.MinValue &&
                                 g9ScheduledItem.Value.FinishDateTime < currentDateTime)
                             {
-                                removeScheduleItem(g9ScheduledItem);
+                                RemoveScheduleItem(g9ScheduledItem);
                                 continue;
                             }
 
@@ -579,7 +576,7 @@ namespace G9ScheduleManagement
 
         #region removeScheduleItem
 
-        private static void removeScheduleItem(KeyValuePair<Guid, G9ScheduleItem.G9ScheduleItem> g9ScheduledItem)
+        private static void RemoveScheduleItem(KeyValuePair<Guid, G9ScheduleItem.G9ScheduleItem> g9ScheduledItem)
         {
             // remove from schedule
             try
