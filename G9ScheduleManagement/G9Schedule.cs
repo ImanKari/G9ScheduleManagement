@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -13,34 +14,32 @@ namespace G9ScheduleManagement
         #region Fields And Properties
 
         /// <summary>
+        ///     Lock collection for use
+        /// </summary>
+        private static readonly object LockCollectionForScheduleTask = new object();
+
+        /// <summary>
         ///     Field Sorted dictionary for save Schedule items
         ///     Use for lock
         /// </summary>
+        // ReSharper disable once FieldCanBeMadeReadOnly.Local
         private static SortedDictionary<Guid, G9ScheduleItem.G9ScheduleItem> _saveScheduleTask =
             new SortedDictionary<Guid, G9ScheduleItem.G9ScheduleItem>();
-
-        /// <summary>
-        ///     Sorted dictionary for save Schedule items
-        /// </summary>
-        private static SortedDictionary<Guid, G9ScheduleItem.G9ScheduleItem> SaveScheduleTask
-        {
-            get
-            {
-                lock (_saveScheduleTask)
-                {
-                    // if is null set new instance
-                    return _saveScheduleTask ??
-                           (_saveScheduleTask = new SortedDictionary<Guid, G9ScheduleItem.G9ScheduleItem>());
-                    // return for use
-                }
-            }
-        }
 
         /// <summary>
         ///     Specify enable Schedule count
         /// </summary>
         // ReSharper disable once UnusedMember.Global
-        public static int ScheduleItemCount => SaveScheduleTask.Count;
+        public static int ScheduleItemCount
+        {
+            get
+            {
+                lock (LockCollectionForScheduleTask)
+                {
+                    return _saveScheduleTask.Count;
+                }
+            }
+        }
 
         /// <summary>
         ///     Save schedule for this class object
@@ -87,32 +86,43 @@ namespace G9ScheduleManagement
                 // Set Identity
                 _scheduleItem = new G9ScheduleItem.G9ScheduleItem {Identity = ScheduleIdentity = Guid.NewGuid()};
 
-                // Add schedule
-                SaveScheduleTask.Add(ScheduleIdentity, _scheduleItem);
-            }
-
-            if (!_activeSchedule)
-            {
-                _activeSchedule = true;
-                Task.Run(async () =>
+                lock (LockCollectionForScheduleTask)
                 {
-                    while (true)
-                        // Check Schedule handler method finished or no
-                        if (_waitForFinishScheduleHandler)
+                    // Add schedule
+                    _saveScheduleTask.Add(ScheduleIdentity, _scheduleItem);
+                }
+            }
+
+            // if not active return
+            if (_activeSchedule) return;
+
+            _activeSchedule = true;
+            Task.Run(async () =>
+            {
+                while (true)
+                    // Check Schedule handler method finished or no
+                    if (_waitForFinishScheduleHandler)
+                    {
+                        // if not finished Delay and check again
+                        await Task.Delay(1);
+                    }
+                    else
+                    {
+                        // if finished run Schedule handler again and wait
+                        try
                         {
-                            // if not finished Delay and check again
-                            await Task.Delay(1);
-                        }
-                        else
-                        {
-                            // if finished run Schedule handler again and wait
                             await ScheduleHandler();
-                            await Task.Delay(1);
+                        }
+                        catch
+                        {
+                            // Ignore
                         }
 
-                    // ReSharper disable once FunctionNeverReturns
-                });
-            }
+                        await Task.Delay(1);
+                    }
+
+                // ReSharper disable once FunctionNeverReturns
+            });
         }
 
         #endregion
@@ -141,10 +151,14 @@ namespace G9ScheduleManagement
 
         public G9Schedule(Guid scheduleIdentity)
         {
-            if (!SaveScheduleTask.ContainsKey(scheduleIdentity))
-                throw new Exception("Schedule not found!");
+            lock (LockCollectionForScheduleTask)
+            {
+                if (!_saveScheduleTask.ContainsKey(scheduleIdentity))
+                    throw new Exception("Schedule not found!");
 
-            _scheduleItem = SaveScheduleTask[scheduleIdentity];
+                _scheduleItem = _saveScheduleTask[scheduleIdentity];
+            }
+
             ScheduleIdentity = scheduleIdentity;
 
             Initialize(false);
@@ -160,10 +174,13 @@ namespace G9ScheduleManagement
 
         public void Dispose()
         {
-            if (SaveScheduleTask[ScheduleIdentity].DisposeCallBack == null)
-                SaveScheduleTask[ScheduleIdentity].DisposeCallBack = new HashSet<Action>();
-            foreach (var action in SaveScheduleTask[ScheduleIdentity].DisposeCallBack) action?.Invoke();
-            SaveScheduleTask.Remove(ScheduleIdentity);
+            lock (LockCollectionForScheduleTask)
+            {
+                if (_saveScheduleTask[ScheduleIdentity].DisposeCallBack == null)
+                    _saveScheduleTask[ScheduleIdentity].DisposeCallBack = new HashSet<Action>();
+                foreach (var action in _saveScheduleTask[ScheduleIdentity].DisposeCallBack) action?.Invoke();
+                _saveScheduleTask.Remove(ScheduleIdentity);
+            }
 
             ScheduleIdentity = Guid.Empty;
             _scheduleItem = null;
@@ -195,9 +212,13 @@ namespace G9ScheduleManagement
         public G9Schedule AddScheduleAction(Action scheduleAction)
         {
             CheckValidation();
-            if (SaveScheduleTask[ScheduleIdentity].ScheduleAction == null)
-                SaveScheduleTask[ScheduleIdentity].ScheduleAction = new HashSet<Action>();
-            SaveScheduleTask[ScheduleIdentity].ScheduleAction.Add(scheduleAction);
+            lock (LockCollectionForScheduleTask)
+            {
+                if (_saveScheduleTask[ScheduleIdentity].ScheduleAction == null)
+                    _saveScheduleTask[ScheduleIdentity].ScheduleAction = new HashSet<Action>();
+                _saveScheduleTask[ScheduleIdentity].ScheduleAction.Add(scheduleAction);
+            }
+
             return this;
         }
 
@@ -214,9 +235,13 @@ namespace G9ScheduleManagement
         public G9Schedule RemoveScheduleAction(Action scheduleAction)
         {
             CheckValidation();
-            if (SaveScheduleTask[ScheduleIdentity].ScheduleAction == null)
-                SaveScheduleTask[ScheduleIdentity].ScheduleAction = new HashSet<Action>();
-            SaveScheduleTask[ScheduleIdentity].ScheduleAction.Remove(scheduleAction);
+            lock (LockCollectionForScheduleTask)
+            {
+                if (_saveScheduleTask[ScheduleIdentity].ScheduleAction == null)
+                    _saveScheduleTask[ScheduleIdentity].ScheduleAction = new HashSet<Action>();
+                _saveScheduleTask[ScheduleIdentity].ScheduleAction.Remove(scheduleAction);
+            }
+
             return this;
         }
 
@@ -233,9 +258,13 @@ namespace G9ScheduleManagement
         public G9Schedule AddFinishCallBack(Action finishCallBackAction)
         {
             CheckValidation();
-            if (SaveScheduleTask[ScheduleIdentity].FinishCallBack == null)
-                SaveScheduleTask[ScheduleIdentity].FinishCallBack = new HashSet<Action>();
-            SaveScheduleTask[ScheduleIdentity].FinishCallBack.Add(finishCallBackAction);
+            lock (LockCollectionForScheduleTask)
+            {
+                if (_saveScheduleTask[ScheduleIdentity].FinishCallBack == null)
+                    _saveScheduleTask[ScheduleIdentity].FinishCallBack = new HashSet<Action>();
+                _saveScheduleTask[ScheduleIdentity].FinishCallBack.Add(finishCallBackAction);
+            }
+
             return this;
         }
 
@@ -252,9 +281,13 @@ namespace G9ScheduleManagement
         public G9Schedule RemoveFinishCallBack(Action finishCallBackAction)
         {
             CheckValidation();
-            if (SaveScheduleTask[ScheduleIdentity].FinishCallBack == null)
-                SaveScheduleTask[ScheduleIdentity].FinishCallBack = new HashSet<Action>();
-            SaveScheduleTask[ScheduleIdentity].FinishCallBack.Remove(finishCallBackAction);
+            lock (LockCollectionForScheduleTask)
+            {
+                if (_saveScheduleTask[ScheduleIdentity].FinishCallBack == null)
+                    _saveScheduleTask[ScheduleIdentity].FinishCallBack = new HashSet<Action>();
+                _saveScheduleTask[ScheduleIdentity].FinishCallBack.Remove(finishCallBackAction);
+            }
+
             return this;
         }
 
@@ -271,9 +304,13 @@ namespace G9ScheduleManagement
         public G9Schedule AddStopCallBack(Action stopCallBackAction)
         {
             CheckValidation();
-            if (SaveScheduleTask[ScheduleIdentity].StopCallBack == null)
-                SaveScheduleTask[ScheduleIdentity].StopCallBack = new HashSet<Action>();
-            SaveScheduleTask[ScheduleIdentity].StopCallBack.Add(stopCallBackAction);
+            lock (LockCollectionForScheduleTask)
+            {
+                if (_saveScheduleTask[ScheduleIdentity].StopCallBack == null)
+                    _saveScheduleTask[ScheduleIdentity].StopCallBack = new HashSet<Action>();
+                _saveScheduleTask[ScheduleIdentity].StopCallBack.Add(stopCallBackAction);
+            }
+
             return this;
         }
 
@@ -290,9 +327,13 @@ namespace G9ScheduleManagement
         public G9Schedule RemoveStopCallBack(Action stopCallBackAction)
         {
             CheckValidation();
-            if (SaveScheduleTask[ScheduleIdentity].StopCallBack == null)
-                SaveScheduleTask[ScheduleIdentity].StopCallBack = new HashSet<Action>();
-            SaveScheduleTask[ScheduleIdentity].StopCallBack.Remove(stopCallBackAction);
+            lock (LockCollectionForScheduleTask)
+            {
+                if (_saveScheduleTask[ScheduleIdentity].StopCallBack == null)
+                    _saveScheduleTask[ScheduleIdentity].StopCallBack = new HashSet<Action>();
+                _saveScheduleTask[ScheduleIdentity].StopCallBack.Remove(stopCallBackAction);
+            }
+
             return this;
         }
 
@@ -309,9 +350,13 @@ namespace G9ScheduleManagement
         public G9Schedule AddResumeCallBack(Action resumeCallBackAction)
         {
             CheckValidation();
-            if (SaveScheduleTask[ScheduleIdentity].ResumeCallBack == null)
-                SaveScheduleTask[ScheduleIdentity].ResumeCallBack = new HashSet<Action>();
-            SaveScheduleTask[ScheduleIdentity].ResumeCallBack.Add(resumeCallBackAction);
+            lock (LockCollectionForScheduleTask)
+            {
+                if (_saveScheduleTask[ScheduleIdentity].ResumeCallBack == null)
+                    _saveScheduleTask[ScheduleIdentity].ResumeCallBack = new HashSet<Action>();
+                _saveScheduleTask[ScheduleIdentity].ResumeCallBack.Add(resumeCallBackAction);
+            }
+
             return this;
         }
 
@@ -328,9 +373,13 @@ namespace G9ScheduleManagement
         public G9Schedule RemoveResumeCallBack(Action resumeCallBackAction)
         {
             CheckValidation();
-            if (SaveScheduleTask[ScheduleIdentity].ResumeCallBack == null)
-                SaveScheduleTask[ScheduleIdentity].ResumeCallBack = new HashSet<Action>();
-            SaveScheduleTask[ScheduleIdentity].ResumeCallBack.Remove(resumeCallBackAction);
+            lock (LockCollectionForScheduleTask)
+            {
+                if (_saveScheduleTask[ScheduleIdentity].ResumeCallBack == null)
+                    _saveScheduleTask[ScheduleIdentity].ResumeCallBack = new HashSet<Action>();
+                _saveScheduleTask[ScheduleIdentity].ResumeCallBack.Remove(resumeCallBackAction);
+            }
+
             return this;
         }
 
@@ -347,9 +396,13 @@ namespace G9ScheduleManagement
         public G9Schedule AddErrorCallBack(Action<Exception> errorCallBackAction)
         {
             CheckValidation();
-            if (SaveScheduleTask[ScheduleIdentity].ErrorCallBack == null)
-                SaveScheduleTask[ScheduleIdentity].ErrorCallBack = new HashSet<Action<Exception>>();
-            SaveScheduleTask[ScheduleIdentity].ErrorCallBack.Add(errorCallBackAction);
+            lock (LockCollectionForScheduleTask)
+            {
+                if (_saveScheduleTask[ScheduleIdentity].ErrorCallBack == null)
+                    _saveScheduleTask[ScheduleIdentity].ErrorCallBack = new HashSet<Action<Exception>>();
+                _saveScheduleTask[ScheduleIdentity].ErrorCallBack.Add(errorCallBackAction);
+            }
+
             return this;
         }
 
@@ -366,9 +419,13 @@ namespace G9ScheduleManagement
         public G9Schedule RemoveErrorCallBack(Action<Exception> errorCallBackAction)
         {
             CheckValidation();
-            if (SaveScheduleTask[ScheduleIdentity].ErrorCallBack == null)
-                SaveScheduleTask[ScheduleIdentity].ErrorCallBack = new HashSet<Action<Exception>>();
-            SaveScheduleTask[ScheduleIdentity].ErrorCallBack.Remove(errorCallBackAction);
+            lock (LockCollectionForScheduleTask)
+            {
+                if (_saveScheduleTask[ScheduleIdentity].ErrorCallBack == null)
+                    _saveScheduleTask[ScheduleIdentity].ErrorCallBack = new HashSet<Action<Exception>>();
+                _saveScheduleTask[ScheduleIdentity].ErrorCallBack.Remove(errorCallBackAction);
+            }
+
             return this;
         }
 
@@ -385,9 +442,13 @@ namespace G9ScheduleManagement
         public G9Schedule AddDisposeCallBack(Action disposeCallBackAction)
         {
             CheckValidation();
-            if (SaveScheduleTask[ScheduleIdentity].DisposeCallBack == null)
-                SaveScheduleTask[ScheduleIdentity].DisposeCallBack = new HashSet<Action>();
-            SaveScheduleTask[ScheduleIdentity].DisposeCallBack.Add(disposeCallBackAction);
+            lock (LockCollectionForScheduleTask)
+            {
+                if (_saveScheduleTask[ScheduleIdentity].DisposeCallBack == null)
+                    _saveScheduleTask[ScheduleIdentity].DisposeCallBack = new HashSet<Action>();
+                _saveScheduleTask[ScheduleIdentity].DisposeCallBack.Add(disposeCallBackAction);
+            }
+
             return this;
         }
 
@@ -404,9 +465,13 @@ namespace G9ScheduleManagement
         public G9Schedule RemoveDisposeCallBack(Action disposeCallBackAction)
         {
             CheckValidation();
-            if (SaveScheduleTask[ScheduleIdentity].DisposeCallBack == null)
-                SaveScheduleTask[ScheduleIdentity].DisposeCallBack = new HashSet<Action>();
-            SaveScheduleTask[ScheduleIdentity].DisposeCallBack.Remove(disposeCallBackAction);
+            lock (LockCollectionForScheduleTask)
+            {
+                if (_saveScheduleTask[ScheduleIdentity].DisposeCallBack == null)
+                    _saveScheduleTask[ScheduleIdentity].DisposeCallBack = new HashSet<Action>();
+                _saveScheduleTask[ScheduleIdentity].DisposeCallBack.Remove(disposeCallBackAction);
+            }
+
             return this;
         }
 
@@ -424,7 +489,11 @@ namespace G9ScheduleManagement
         public G9Schedule SetStartDateTime(DateTime startDateTime)
         {
             CheckValidation();
-            SaveScheduleTask[ScheduleIdentity].StartDateTime = startDateTime;
+            lock (LockCollectionForScheduleTask)
+            {
+                _saveScheduleTask[ScheduleIdentity].StartDateTime = startDateTime;
+            }
+
             return this;
         }
 
@@ -442,7 +511,11 @@ namespace G9ScheduleManagement
         public G9Schedule SetFinishDateTime(DateTime finishDateTime)
         {
             CheckValidation();
-            SaveScheduleTask[ScheduleIdentity].FinishDateTime = finishDateTime;
+            lock (LockCollectionForScheduleTask)
+            {
+                _saveScheduleTask[ScheduleIdentity].FinishDateTime = finishDateTime;
+            }
+
             return this;
         }
 
@@ -459,7 +532,11 @@ namespace G9ScheduleManagement
         public G9Schedule SetDuration(TimeSpan duration)
         {
             CheckValidation();
-            SaveScheduleTask[ScheduleIdentity].Duration = duration;
+            lock (LockCollectionForScheduleTask)
+            {
+                _saveScheduleTask[ScheduleIdentity].Duration = duration;
+            }
+
             return this;
         }
 
@@ -477,7 +554,11 @@ namespace G9ScheduleManagement
         public G9Schedule SetPeriod(int period)
         {
             CheckValidation();
-            SaveScheduleTask[ScheduleIdentity].Period = period;
+            lock (LockCollectionForScheduleTask)
+            {
+                _saveScheduleTask[ScheduleIdentity].Period = period;
+            }
+
             return this;
         }
 
@@ -496,61 +577,71 @@ namespace G9ScheduleManagement
             {
                 _waitForFinishScheduleHandler = true;
                 var currentDateTime = DateTime.Now;
-
+                List<KeyValuePair<Guid, G9ScheduleItem.G9ScheduleItem>> deletedList = null;
+                List<KeyValuePair<Guid, G9ScheduleItem.G9ScheduleItem>> scheduleList;
                 try
                 {
-                    foreach (var g9ScheduledItem in SaveScheduleTask)
+                    lock (LockCollectionForScheduleTask)
+                    {
+                        scheduleList = _saveScheduleTask.ToList();
+                    }
+
+                    foreach (var scheduledItem in scheduleList)
                         try
                         {
                             // If Schedule disable => stop
-                            if (!g9ScheduledItem.Value.EnableSchedule)
+                            if (!scheduledItem.Value.EnableSchedule)
                                 continue;
 
                             // If Schedule period enable and greater than PeriodCounter => remove from category and continue
-                            if (g9ScheduledItem.Value.Period > 0 &&
-                                g9ScheduledItem.Value.PeriodCounter >= g9ScheduledItem.Value.Period)
+                            if (scheduledItem.Value.Period > 0 &&
+                                scheduledItem.Value.PeriodCounter >= scheduledItem.Value.Period)
                             {
-                                RemoveScheduleItem(g9ScheduledItem);
+                                if (deletedList == null)
+                                    deletedList = new List<KeyValuePair<Guid, G9ScheduleItem.G9ScheduleItem>>();
+                                deletedList.Add(scheduledItem);
                                 continue;
                             }
 
-                            // If acction is null continue
-                            if (g9ScheduledItem.Value.ScheduleAction == null ||
-                                g9ScheduledItem.Value.Duration == Timeout.InfiniteTimeSpan)
+                            // If action is null continue
+                            if (scheduledItem.Value.ScheduleAction == null ||
+                                scheduledItem.Value.Duration == Timeout.InfiniteTimeSpan)
                                 continue;
 
                             // Check start time
-                            if (g9ScheduledItem.Value.StartDateTime != DateTime.MinValue &&
-                                g9ScheduledItem.Value.StartDateTime > currentDateTime)
+                            if (scheduledItem.Value.StartDateTime != DateTime.MinValue &&
+                                scheduledItem.Value.StartDateTime > currentDateTime)
                                 continue;
 
                             // Check end date time => remove from category and continue if EndTime < DateTime.Now
-                            if (g9ScheduledItem.Value.FinishDateTime != DateTime.MinValue &&
-                                g9ScheduledItem.Value.FinishDateTime < currentDateTime)
+                            if (scheduledItem.Value.FinishDateTime != DateTime.MinValue &&
+                                scheduledItem.Value.FinishDateTime < currentDateTime)
                             {
-                                RemoveScheduleItem(g9ScheduledItem);
+                                if (deletedList == null)
+                                    deletedList = new List<KeyValuePair<Guid, G9ScheduleItem.G9ScheduleItem>>();
+                                deletedList.Add(scheduledItem);
                                 continue;
                             }
 
-                            // Check duratuin
-                            if (currentDateTime - g9ScheduledItem.Value.LastRunDateTime <
-                                g9ScheduledItem.Value.Duration)
+                            // Check duration
+                            if (currentDateTime - scheduledItem.Value.LastRunDateTime <
+                                scheduledItem.Value.Duration)
                                 continue;
 
                             // Run job
-                            foreach (var action in g9ScheduledItem.Value.ScheduleAction) action?.Invoke();
+                            foreach (var action in scheduledItem.Value.ScheduleAction) action?.Invoke();
 
                             // plus period counter when run
-                            g9ScheduledItem.Value.PeriodCounter++;
+                            scheduledItem.Value.PeriodCounter++;
 
                             // Set last run date time
-                            g9ScheduledItem.Value.LastRunDateTime = currentDateTime;
+                            scheduledItem.Value.LastRunDateTime = currentDateTime;
                         }
                         catch (Exception ex)
                         {
                             try
                             {
-                                foreach (var action in g9ScheduledItem.Value.ErrorCallBack) action?.Invoke(ex);
+                                foreach (var action in scheduledItem.Value.ErrorCallBack) action?.Invoke(ex);
                             }
                             catch
                             {
@@ -560,6 +651,12 @@ namespace G9ScheduleManagement
                 }
                 finally
                 {
+                    // Delete items in list
+                    if (deletedList != null)
+                        foreach (var deleteItem in deletedList)
+                            RemoveScheduleItem(deleteItem);
+
+                    // wait flag
                     _waitForFinishScheduleHandler = false;
                 }
             });
@@ -593,8 +690,11 @@ namespace G9ScheduleManagement
             {
                 try
                 {
-                    // Remove
-                    SaveScheduleTask.Remove(g9ScheduledItem.Key);
+                    lock (LockCollectionForScheduleTask)
+                    {
+                        // Remove
+                        _saveScheduleTask.Remove(g9ScheduledItem.Key);
+                    }
                 }
                 catch
                 {
@@ -614,12 +714,15 @@ namespace G9ScheduleManagement
         public void Resume()
         {
             CheckValidation();
-            if (SaveScheduleTask[ScheduleIdentity].EnableSchedule)
-                return;
-            if (SaveScheduleTask[ScheduleIdentity].ResumeCallBack == null)
-                SaveScheduleTask[ScheduleIdentity].ResumeCallBack = new HashSet<Action>();
-            foreach (var action in SaveScheduleTask[ScheduleIdentity].ResumeCallBack) action?.Invoke();
-            SaveScheduleTask[ScheduleIdentity].EnableSchedule = true;
+            lock (LockCollectionForScheduleTask)
+            {
+                if (_saveScheduleTask[ScheduleIdentity].EnableSchedule)
+                    return;
+                if (_saveScheduleTask[ScheduleIdentity].ResumeCallBack == null)
+                    _saveScheduleTask[ScheduleIdentity].ResumeCallBack = new HashSet<Action>();
+                foreach (var action in _saveScheduleTask[ScheduleIdentity].ResumeCallBack) action?.Invoke();
+                _saveScheduleTask[ScheduleIdentity].EnableSchedule = true;
+            }
         }
 
         #endregion
@@ -633,12 +736,15 @@ namespace G9ScheduleManagement
         public void Stop()
         {
             CheckValidation();
-            if (!SaveScheduleTask[ScheduleIdentity].EnableSchedule)
-                return;
-            SaveScheduleTask[ScheduleIdentity].EnableSchedule = false;
-            if (SaveScheduleTask[ScheduleIdentity].StopCallBack == null)
-                SaveScheduleTask[ScheduleIdentity].StopCallBack = new HashSet<Action>();
-            foreach (var action in SaveScheduleTask[ScheduleIdentity].StopCallBack) action?.Invoke();
+            lock (LockCollectionForScheduleTask)
+            {
+                if (!_saveScheduleTask[ScheduleIdentity].EnableSchedule)
+                    return;
+                _saveScheduleTask[ScheduleIdentity].EnableSchedule = false;
+                if (_saveScheduleTask[ScheduleIdentity].StopCallBack == null)
+                    _saveScheduleTask[ScheduleIdentity].StopCallBack = new HashSet<Action>();
+                foreach (var action in _saveScheduleTask[ScheduleIdentity].StopCallBack) action?.Invoke();
+            }
         }
 
         #endregion
@@ -651,7 +757,10 @@ namespace G9ScheduleManagement
 
         public void ResetDuration()
         {
-            SaveScheduleTask[ScheduleIdentity].LastRunDateTime = DateTime.Now;
+            lock (LockCollectionForScheduleTask)
+            {
+                _saveScheduleTask[ScheduleIdentity].LastRunDateTime = DateTime.Now;
+            }
         }
 
         #endregion

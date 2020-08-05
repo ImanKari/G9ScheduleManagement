@@ -49,7 +49,7 @@ namespace G9ScheduleManagement.G9ScheduleItem
         /// <summary>
         ///     Field save last run Schedule for calculate duration
         /// </summary>
-        public DateTime LastRunDateTime = DateTime.MinValue;
+        public DateTime LastRunDateTime = DateTime.Now;
 
         /// <summary>
         ///     Specify Schedule period
