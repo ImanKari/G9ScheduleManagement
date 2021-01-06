@@ -5,7 +5,7 @@
     <StartupObject />
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-    <Version>2.1.0.1</Version>
+    <Version>2.1.0.2</Version>
     <Authors>Iman Kari</Authors>
     <Company>G9Studio</Company>
     <Description>Schedule Management</Description>
@@ -14,8 +14,8 @@
     <PackageIconUrl></PackageIconUrl>
     <PackageProjectUrl>http://www.G9TM.com/</PackageProjectUrl>
     <Product>G9 Schedule Management</Product>
-    <AssemblyVersion>2.1.0.1</AssemblyVersion>
-    <FileVersion>2.1.0.1</FileVersion>
+    <AssemblyVersion>2.1.0.2</AssemblyVersion>
+    <FileVersion>2.1.0.2</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

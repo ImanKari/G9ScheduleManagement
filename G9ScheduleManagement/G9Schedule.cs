@@ -97,7 +97,7 @@ namespace G9ScheduleManagement
             if (_activeSchedule) return;
 
             _activeSchedule = true;
-            Task.Run(async () =>
+            Task.Factory.StartNew(async () =>
             {
                 while (true)
                     // Check Schedule handler method finished or no
