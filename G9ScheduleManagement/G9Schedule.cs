@@ -149,7 +149,7 @@ namespace G9ScheduleManagement
 
         #region G9Scheduled
 
-        // ReSharper disable once UnusedMember.Global
+        // ReSharper disable once UnusedMember.Global 
         public G9Schedule(Guid scheduleIdentity)
         {
             lock (LockCollectionForScheduleTask)
