@@ -5,7 +5,7 @@
     <StartupObject />
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-    <Version>2.1.0.2</Version>
+    <Version>2.1.0.3</Version>
     <Authors>Iman Kari</Authors>
     <Company>G9Studio</Company>
     <Description>Schedule Management</Description>
@@ -14,11 +14,21 @@
     <PackageIconUrl></PackageIconUrl>
     <PackageProjectUrl>http://www.G9TM.com/</PackageProjectUrl>
     <Product>G9 Schedule Management</Product>
-    <AssemblyVersion>2.1.0.2</AssemblyVersion>
-    <FileVersion>2.1.0.2</FileVersion>
+    <AssemblyVersion>2.1.0.3</AssemblyVersion>
+    <FileVersion>2.1.0.3</FileVersion>
+    <PackageIcon>G9-Icon.png</PackageIcon>
+    <RepositoryUrl>https://github.com/ImanKari/G9ScheduleManagement</RepositoryUrl>
+    <RepositoryType>GitHub</RepositoryType>
+    <PackageTags>Schedule Scheduler Management ScheduleManagement</PackageTags>
+    <PackageReleaseNotes>-- Fixed Version 2.1.0.3</PackageReleaseNotes>
+    <NeutralLanguage>en</NeutralLanguage>
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="G9-Icon.png">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
     <None Include="LICENSE.md">
       <Pack>True</Pack>
       <PackagePath></PackagePath>
