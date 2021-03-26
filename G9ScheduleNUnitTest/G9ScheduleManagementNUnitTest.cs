@@ -25,6 +25,7 @@ namespace G9ScheduleNUnitTest
         [Order(2)]
         public void TestScheduleRunPerSecond()
         {
+
             var counter = 0;
             _schedule
                 .AddScheduleAction(() => { counter++; })
