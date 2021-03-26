@@ -10,7 +10,7 @@ namespace G9ScheduleManagement.G9ScheduleItem
     public class G9ScheduleItem
     {
         /// <summary>
-        ///     Category for save dispose call back
+        ///     Category for save dispose call back s
         /// </summary>
         public HashSet<Action> DisposeCallBack = null;
 

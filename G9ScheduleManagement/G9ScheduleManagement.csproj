@@ -9,10 +9,10 @@
     <Authors>Iman Kari</Authors>
     <Company>G9Studio</Company>
     <Description>Schedule Management</Description>
-    <Copyright>G9Studio - 2019</Copyright>
+    <Copyright>G9Studio - 2021</Copyright>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     <PackageIconUrl></PackageIconUrl>
-    <PackageProjectUrl>http://www.G9TM.com/</PackageProjectUrl>
+    <PackageProjectUrl>http://www.G9TM.com</PackageProjectUrl>
     <Product>G9 Schedule Management</Product>
     <AssemblyVersion>2.1.0.4</AssemblyVersion>
     <FileVersion>2.1.0.4</FileVersion>

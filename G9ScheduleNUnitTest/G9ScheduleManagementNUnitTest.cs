@@ -18,7 +18,7 @@ namespace G9ScheduleNUnitTest
         [Order(1)]
         public void InitializeG9Schedule()
         {
-            _schedule = new G9Schedule();
+            _schedule = new G9Schedule(); 
         }
 
         [Test]
