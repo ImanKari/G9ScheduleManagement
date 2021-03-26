@@ -143,7 +143,7 @@ namespace G9ScheduleManagement
 
         /// <summary>
         ///     Constructor - Restore Schedule by identity
-        ///     Initialize Requirement
+        ///     Initialize Requirement 
         /// </summary>
         /// <param name="scheduleIdentity">Specify Schedule identity for restore enable Schedule</param>
 
