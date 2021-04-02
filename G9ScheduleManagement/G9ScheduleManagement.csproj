@@ -21,7 +21,9 @@
     <RepositoryType>GitHub</RepositoryType>
     <PackageTags>Schedule Scheduler Management ScheduleManagement</PackageTags>
     <PackageReleaseNotes>-- Add LongRunning for schedule 
--- Add CancellationToken for dispose</PackageReleaseNotes>
+-- Add CancellationToken for dispose
+-- Update package icon
+-- Modify license</PackageReleaseNotes>
     <NeutralLanguage>en</NeutralLanguage>
   </PropertyGroup>
 
@@ -80,15 +82,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\..\G9TM\ProjectIcon\ProjectSmallIcon\LICENSE.md">
-      <Pack>True</Pack>
-      <PackagePath></PackagePath>
-    </None>
-    <None Include="G9-Icon.png">
-      <Pack>True</Pack>
-      <PackagePath></PackagePath>
-    </None>
+    <None Remove="LICENSE.md" />
+    <None Remove="LICENSE.md" />
     <None Include="LICENSE.md">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="G9-Icon.png">
       <Pack>True</Pack>
       <PackagePath></PackagePath>
     </None>
