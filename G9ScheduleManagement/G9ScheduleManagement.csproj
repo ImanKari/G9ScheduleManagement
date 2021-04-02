@@ -20,7 +20,7 @@
     <RepositoryUrl>https://github.com/ImanKari/G9ScheduleManagement</RepositoryUrl>
     <RepositoryType>GitHub</RepositoryType>
     <PackageTags>Schedule Scheduler Management ScheduleManagement</PackageTags>
-    <PackageReleaseNotes>-- Add LongRunning for schedule
+    <PackageReleaseNotes>-- Add LongRunning for schedule 
 -- Add CancellationToken for dispose</PackageReleaseNotes>
     <NeutralLanguage>en</NeutralLanguage>
   </PropertyGroup>
