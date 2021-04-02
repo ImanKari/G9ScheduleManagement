@@ -7,7 +7,7 @@ namespace G9ScheduleManagement.G9ScheduleItem
     /// <summary>
     ///     Class data type for Schedule item
     /// </summary>
-    public class G9ScheduleItem
+    public class G9DtScheduleItem
     {
         /// <summary>
         ///     Category for save dispose call back s

@@ -5,9 +5,9 @@ using NUnit.Framework;
 
 namespace G9ScheduleNUnitTest
 {
-    public class G9ScheduleManagementNUnitTest
+    public class G9CScheduleManagementNUnitTest
     {
-        private G9Schedule _schedule;
+        private G9CSchedule _schedule;
 
         [SetUp]
         public void Setup()
@@ -18,7 +18,7 @@ namespace G9ScheduleNUnitTest
         [Order(1)]
         public void InitializeG9Schedule()
         {
-            _schedule = new G9Schedule(); 
+            _schedule = new G9CSchedule(); 
         }
 
         [Test]
