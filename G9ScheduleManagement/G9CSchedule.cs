@@ -2,18 +2,31 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 using G9ScheduleManagement.G9ScheduleItem;
+#if NET35
+using System.ComponentModel;
+#endif
+
+#if !NET35
+using System.Threading.Tasks;
+#endif
+
+#if !NET35 && !NET40 && !NET45
+using Microsoft.Extensions.Hosting;
+
+#endif
 
 namespace G9ScheduleManagement
 {
     /// <summary>
     ///     Class managed schedule task
     /// </summary>
-#if !NETSTANDARD1_0 && !NETSTANDARD1_1 && !NETSTANDARD1_2
     [Serializable]
-#endif
+#if !NET35 && !NET40 && !NET45
+    public class G9CSchedule : BackgroundService
+#else
     public class G9CSchedule : IDisposable
+#endif
     {
         #region Fields And Properties
 
@@ -71,12 +84,19 @@ namespace G9ScheduleManagement
         // ReSharper disable once UnusedMember.Global
         public int NumberOfExecution => _scheduleItem.PeriodCounter;
 
+#if NET35
+        /// <summary>
+        ///     Cancellation Token For Dispose
+        /// </summary>
+        private static bool _cancellationToken;
+#elif !NET35
         /// <summary>
         ///     Cancellation Token For Dispose
         /// </summary>
         private static CancellationToken _cancellationToken;
 
         private static CancellationTokenSource _cancellationTokenSource;
+#endif
 
         #endregion
 
@@ -92,7 +112,7 @@ namespace G9ScheduleManagement
             if (addNewSchedule)
             {
                 // Set Identity
-                _scheduleItem = new G9DtScheduleItem {Identity = ScheduleIdentity = Guid.NewGuid()};
+                _scheduleItem = new G9DtScheduleItem { Identity = ScheduleIdentity = Guid.NewGuid() };
 
                 lock (LockCollectionForScheduleTask)
                 {
@@ -101,49 +121,34 @@ namespace G9ScheduleManagement
                 }
             }
 
+#if NET35
+            // If use cancellation token - initialize again
+            if (_cancellationToken)
+                InitializeCancellationTokens();
+#else
             // If use cancellation token - initialize again
             if (_cancellationToken.IsCancellationRequested)
                 InitializeCancellationTokens();
+#endif
 
             // if not active return
             if (_activeSchedule) return;
-
-            _activeSchedule = true;
-            Task.Factory.StartNew(async () =>
-            {
-                while (!_cancellationToken.IsCancellationRequested)
-                    // Check Schedule handler method finished or no
-                    if (_waitForFinishScheduleHandler)
-                    {
-                        // if not finished Delay and check again
-                        await Task.Delay(1);
-                    }
-                    else
-                    {
-                        // if finished run Schedule handler again and wait
-                        try
-                        {
-                            await ScheduleHandler();
-                        }
-                        catch
-                        {
-                            // Ignore
-                        }
-
-                        await Task.Delay(1);
-                    }
-
-                // ReSharper disable once FunctionNeverReturns
-            }, _cancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Current);
-        }
-
-        /// <summary>
-        ///     Constructor
-        ///     Initialize Requirement
-        /// </summary>
-        public G9CSchedule()
-        {
-            Initialize(true);
+#if NET35
+            var bw = new BackgroundWorker();
+            bw.DoWork += (sender, args) => { InitializeScheduleHandler(); };
+            bw.RunWorkerAsync();
+#elif NET40
+            Task.Factory.StartNew(() =>
+                {
+                    var task = InitializeScheduleHandler(_cancellationToken);
+                    task.Start();
+                    task.Wait(_cancellationToken);
+                },
+                _cancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Current);
+#else
+            Task.Factory.StartNew(async () => { await InitializeScheduleHandler(_cancellationToken); },
+                _cancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Current);
+#endif
         }
 
         /// <summary>
@@ -156,12 +161,11 @@ namespace G9ScheduleManagement
         }
 
         /// <summary>
-        ///     Initialize Cancellation Tokens
+        ///     Constructor - Restore Schedule by identity
+        ///     Initialize Requirement
         /// </summary>
-        private static void InitializeCancellationTokens()
+        public G9CSchedule()
         {
-            _cancellationTokenSource = new CancellationTokenSource();
-            _cancellationToken = _cancellationTokenSource.Token;
         }
 
         /// <summary>
@@ -184,10 +188,146 @@ namespace G9ScheduleManagement
             Initialize(false);
         }
 
+
+#if NET35
+        /// <summary>
+        ///     Initialize Schedule Handler
+        /// </summary>
+        /// <returns>Task for schedule handler</returns>
+        private void InitializeScheduleHandler()
+#else
+        /// <summary>
+        ///     Initialize Schedule Handler
+        /// </summary>
+        /// <param name="stoppingToken">Cancellation Token</param>
+        /// <returns>Task for schedule handler</returns>
+#if NET40
+        private Task InitializeScheduleHandler(CancellationToken stoppingToken)
+#else
+        private async Task InitializeScheduleHandler(CancellationToken stoppingToken)
+#endif
+#endif
+        {
+#if NET35
+            var bw = new BackgroundWorker();
+            bw.DoWork += (sender, args) =>
+            {
+                while (!_cancellationToken)
+                    // Check Schedule handler method finished or no
+                    if (_waitForFinishScheduleHandler)
+                    {
+                        // if not finished Delay and check again
+                        Thread.Sleep(1);
+                    }
+                    else
+                    {
+                        // if finished run Schedule handler again and wait
+                        try
+                        {
+                            ScheduleHandler();
+                        }
+                        catch
+                        {
+                            // Ignore
+                        }
+
+                        Thread.Sleep(1);
+                    }
+            };
+            bw.RunWorkerAsync();
+#elif NET40
+            var currentTask = new Task(() =>
+            {
+                while (!stoppingToken.IsCancellationRequested)
+                    // Check Schedule handler method finished or no
+                    if (_waitForFinishScheduleHandler)
+                    {
+                        // if not finished Delay and check again
+                        Thread.Sleep(1);
+                    }
+                    else
+                    {
+                        // if finished run Schedule handler again and wait
+                        try
+                        {
+                            var task = ScheduleHandler(stoppingToken);
+                            task.Start();
+                            task.Wait(_cancellationToken);
+                        }
+                        catch
+                        {
+                            // Ignore
+                        }
+
+                        Thread.Sleep(1);
+                    }
+            }, stoppingToken);
+            currentTask.Start();
+            return currentTask;
+#else
+            await Task.Run(async () =>
+            {
+                while (!stoppingToken.IsCancellationRequested)
+                    // Check Schedule handler method finished or no
+                    if (_waitForFinishScheduleHandler)
+                    {
+                        // if not finished Delay and check again
+                        await Task.Delay(1, stoppingToken);
+                    }
+                    else
+                    {
+                        // if finished run Schedule handler again and wait
+                        try
+                        {
+                            await ScheduleHandler(stoppingToken);
+                        }
+                        catch
+                        {
+                            // Ignore
+                        }
+
+                        await Task.Delay(1, stoppingToken);
+                    }
+            }, stoppingToken);
+#endif
+        }
+
+#if !NET35 && !NET40 && !NET45
+        /// <summary>
+        ///     Background Service Handler
+        /// </summary>
+        /// <param name="stoppingToken">Cancellation Token</param>
+        /// <returns>Task Run In Background Service</returns>
+        protected override Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            _activeSchedule = true;
+            return InitializeScheduleHandler(_cancellationToken);
+        }
+#endif
+
+
+        /// <summary>
+        ///     Initialize Cancellation Tokens
+        /// </summary>
+        private static void InitializeCancellationTokens()
+        {
+#if NET35
+            _cancellationToken = false;
+#else
+            _cancellationTokenSource = new CancellationTokenSource();
+            _cancellationToken = _cancellationTokenSource.Token;
+#endif
+        }
+
+
         /// <summary>
         ///     Dispose this Schedule
         /// </summary>
+#if !NET35 && !NET40 && !NET45
+        public override void Dispose()
+#else
         public void Dispose()
+#endif
         {
             lock (LockCollectionForScheduleTask)
             {
@@ -201,7 +341,17 @@ namespace G9ScheduleManagement
             _scheduleItem = null;
 
             // Dispose schedule system if not exist any task
-            if (!_saveScheduleTask.Any()) _cancellationTokenSource.Cancel();
+            if (_saveScheduleTask.Any()) return;
+#if NET35
+            _cancellationToken = true;
+#else
+            _cancellationTokenSource.Cancel();
+#endif
+            _activeSchedule = false;
+
+#if !NET35 && !NET40 && !NET45
+            base.Dispose();
+#endif
         }
 
         /// <summary>
@@ -209,6 +359,12 @@ namespace G9ScheduleManagement
         /// </summary>
         private void CheckValidation()
         {
+            if (!_activeSchedule)
+            {
+                Initialize(true);
+                _activeSchedule = true;
+            }
+
             if (_scheduleItem == null) throw new Exception("Object Disposed!");
         }
 
@@ -495,20 +651,217 @@ namespace G9ScheduleManagement
             return this;
         }
 
+#if NET35
         /// <summary>
         ///     Handler for Schedule
         ///     run every time and execute schedule action task
         /// </summary>
-        private static async Task ScheduleHandler()
+        private static void ScheduleHandler()
+#else
+        /// <summary>
+        ///     Handler for Schedule
+        ///     run every time and execute schedule action task
+        /// </summary>
+        /// <param name="stoppingToken">Cancellation Token</param>
+#if NET40
+        private static Task ScheduleHandler(CancellationToken stoppingToken)
+#else
+        private static async Task ScheduleHandler(CancellationToken stoppingToken)
+#endif
+#endif
         {
+#if NET35
+            var bw = new BackgroundWorker();
+            bw.DoWork += (sender, args) =>
+            {
+                _waitForFinishScheduleHandler = true;
+                var currentDateTime = DateTime.Now;
+                List<KeyValuePair<Guid, G9DtScheduleItem>> deletedList = null;
+                try
+                {
+                    List<KeyValuePair<Guid, G9DtScheduleItem>> scheduleList;
+                    lock (LockCollectionForScheduleTask)
+                    {
+                        scheduleList = _saveScheduleTask.ToList();
+                    }
+
+                    foreach (var scheduledItem in scheduleList)
+                        try
+                        {
+                            if (_cancellationToken)
+                                return;
+
+                            // If Schedule disable => stop
+                            if (!scheduledItem.Value.EnableSchedule)
+                                continue;
+
+                            // If Schedule period enable and greater than PeriodCounter => remove from category and continue
+                            if (scheduledItem.Value.Period > 0 &&
+                                scheduledItem.Value.PeriodCounter >= scheduledItem.Value.Period)
+                            {
+                                if (deletedList == null)
+                                    deletedList = new List<KeyValuePair<Guid, G9DtScheduleItem>>();
+                                deletedList.Add(scheduledItem);
+                                continue;
+                            }
+
+                            // If action is null continue
+                            if (scheduledItem.Value.ScheduleAction == null ||
+                                scheduledItem.Value.Duration == TimeSpan.MaxValue)
+                                continue;
+
+                            // Check start time
+                            if (scheduledItem.Value.StartDateTime != DateTime.MinValue &&
+                                scheduledItem.Value.StartDateTime > currentDateTime)
+                                continue;
+
+                            // Check end date time => remove from category and continue if EndTime < DateTime.Now
+                            if (scheduledItem.Value.FinishDateTime != DateTime.MinValue &&
+                                scheduledItem.Value.FinishDateTime < currentDateTime)
+                            {
+                                if (deletedList == null)
+                                    deletedList = new List<KeyValuePair<Guid, G9DtScheduleItem>>();
+                                deletedList.Add(scheduledItem);
+                                continue;
+                            }
+
+                            // Check duration
+                            if (currentDateTime - scheduledItem.Value.LastRunDateTime <
+                                scheduledItem.Value.Duration)
+                                continue;
+
+                            // Run job
+                            foreach (var action in scheduledItem.Value.ScheduleAction) action?.Invoke();
+
+                            // plus period counter when run
+                            scheduledItem.Value.PeriodCounter++;
+
+                            // Set last run date time
+                            scheduledItem.Value.LastRunDateTime = currentDateTime;
+                        }
+                        catch (Exception ex)
+                        {
+                            try
+                            {
+                                foreach (var action in scheduledItem.Value.ErrorCallBack) action?.Invoke(ex);
+                            }
+                            catch
+                            {
+                                // Ignore
+                            }
+                        }
+                }
+                finally
+                {
+                    // Delete items in list
+                    if (deletedList != null)
+                        foreach (var deleteItem in deletedList)
+                            RemoveScheduleItem(deleteItem);
+
+                    // wait flag
+                    _waitForFinishScheduleHandler = false;
+                }
+            };
+            bw.RunWorkerAsync();
+#elif NET40
+            var oTask = new Task(() =>
+            {
+                _waitForFinishScheduleHandler = true;
+                var currentDateTime = DateTime.Now;
+                List<KeyValuePair<Guid, G9DtScheduleItem>> deletedList = null;
+                try
+                {
+                    List<KeyValuePair<Guid, G9DtScheduleItem>> scheduleList;
+                    lock (LockCollectionForScheduleTask)
+                    {
+                        scheduleList = _saveScheduleTask.ToList();
+                    }
+
+                    foreach (var scheduledItem in scheduleList)
+                        try
+                        {
+                            // If Schedule disable => stop
+                            if (!scheduledItem.Value.EnableSchedule)
+                                continue;
+
+                            // If Schedule period enable and greater than PeriodCounter => remove from category and continue
+                            if (scheduledItem.Value.Period > 0 &&
+                                scheduledItem.Value.PeriodCounter >= scheduledItem.Value.Period)
+                            {
+                                if (deletedList == null)
+                                    deletedList = new List<KeyValuePair<Guid, G9DtScheduleItem>>();
+                                deletedList.Add(scheduledItem);
+                                continue;
+                            }
+
+                            // If action is null continue
+                            if (scheduledItem.Value.ScheduleAction == null ||
+                                scheduledItem.Value.Duration == TimeSpan.MaxValue)
+                                continue;
+
+                            // Check start time
+                            if (scheduledItem.Value.StartDateTime != DateTime.MinValue &&
+                                scheduledItem.Value.StartDateTime > currentDateTime)
+                                continue;
+
+                            // Check end date time => remove from category and continue if EndTime < DateTime.Now
+                            if (scheduledItem.Value.FinishDateTime != DateTime.MinValue &&
+                                scheduledItem.Value.FinishDateTime < currentDateTime)
+                            {
+                                if (deletedList == null)
+                                    deletedList = new List<KeyValuePair<Guid, G9DtScheduleItem>>();
+                                deletedList.Add(scheduledItem);
+                                continue;
+                            }
+
+                            // Check duration
+                            if (currentDateTime - scheduledItem.Value.LastRunDateTime <
+                                scheduledItem.Value.Duration)
+                                continue;
+
+                            // Run job
+                            foreach (var action in scheduledItem.Value.ScheduleAction) action?.Invoke();
+
+                            // plus period counter when run
+                            scheduledItem.Value.PeriodCounter++;
+
+                            // Set last run date time
+                            scheduledItem.Value.LastRunDateTime = currentDateTime;
+                        }
+                        catch (Exception ex)
+                        {
+                            try
+                            {
+                                foreach (var action in scheduledItem.Value.ErrorCallBack) action?.Invoke(ex);
+                            }
+                            catch
+                            {
+                                // Ignore
+                            }
+                        }
+                }
+                finally
+                {
+                    // Delete items in list
+                    if (deletedList != null)
+                        foreach (var deleteItem in deletedList)
+                            RemoveScheduleItem(deleteItem);
+
+                    // wait flag
+                    _waitForFinishScheduleHandler = false;
+                }
+            }, stoppingToken);
+            oTask.Start();
+            return oTask;
+#else
             var oTask = Task.Run(() =>
             {
                 _waitForFinishScheduleHandler = true;
                 var currentDateTime = DateTime.Now;
                 List<KeyValuePair<Guid, G9DtScheduleItem>> deletedList = null;
-                List<KeyValuePair<Guid, G9DtScheduleItem>> scheduleList;
                 try
                 {
+                    List<KeyValuePair<Guid, G9DtScheduleItem>> scheduleList;
                     lock (LockCollectionForScheduleTask)
                     {
                         scheduleList = _saveScheduleTask.ToList();
@@ -587,8 +940,9 @@ namespace G9ScheduleManagement
                     // wait flag
                     _waitForFinishScheduleHandler = false;
                 }
-            });
+            }, stoppingToken);
             await oTask;
+#endif
         }
 
         /// <summary>

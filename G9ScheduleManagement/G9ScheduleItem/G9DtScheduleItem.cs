@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+#if !NET35 && !NET40
 using System.Threading;
+#endif
 
 namespace G9ScheduleManagement.G9ScheduleItem
 {
@@ -17,7 +19,11 @@ namespace G9ScheduleManagement.G9ScheduleItem
         /// <summary>
         ///     Field save duration between run Schedule
         /// </summary>
+#if NET35 || NET40
+        public TimeSpan Duration = TimeSpan.MaxValue;
+#else
         public TimeSpan Duration = Timeout.InfiniteTimeSpan;
+#endif
 
         /// <summary>
         ///     Specify Schedule is enable or no

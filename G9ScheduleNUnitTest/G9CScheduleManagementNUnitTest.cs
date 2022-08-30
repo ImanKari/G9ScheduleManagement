@@ -32,7 +32,7 @@ namespace G9ScheduleNUnitTest
                 .SetDuration(TimeSpan.FromSeconds(1))
                 .AddErrorCallBack(exception => { Assert.Fail($"Schedule error!\n{exception.StackTrace}"); });
             Thread.Sleep(3369);
-            if (counter == 3)
+            if (counter >= 3)
                 Assert.Pass();
             else
                 Assert.Fail("Fail run");
