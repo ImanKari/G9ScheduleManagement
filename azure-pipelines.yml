@@ -31,8 +31,12 @@ steps:
 - task: VSTest@2
   inputs:
     testSelector: testAssemblies
-    testAssemblyVer2: '\G9ScheduleNUnitTest\bin\Release\$(TargetFramework)\G9ScheduleNUnitTest.dll'
+    testAssemblyVer2: |
+      **\Release\G9ScheduleNUnitTest.dll
+      !**\*TestAdapter.dll
+      !**\obj\**
     testFiltercriteria: FullyQualifiedName~G9ScheduleNUnitTest
+    otherConsoleOptions: '/Platform:{platform type: x86/x64/ARM} /Framework:{Framwork version}'
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
 
