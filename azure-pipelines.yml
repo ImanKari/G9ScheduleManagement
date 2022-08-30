@@ -31,7 +31,7 @@ steps:
 - task: VSTest@2
   inputs:
     testSelector: testAssemblies
-    testAssemblyVer2: '$(SolutionDir)G9ScheduleNUnitTest\bin\Release\net35\G9ScheduleNUnitTest.dll'
+    testAssemblyVer2: 'D:\a\1\s\G9ScheduleNUnitTest\bin\Release\net35\G9ScheduleNUnitTest.dll'
     testFiltercriteria: FullyQualifiedName~G9ScheduleNUnitTest
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
@@ -39,7 +39,7 @@ steps:
 - task: VSTest@2
   inputs:
     testSelector: testAssemblies
-    testAssemblyVer2: '$(SolutionDir)G9ScheduleNUnitTest\bin\Release\net40\G9ScheduleNUnitTest.dll'
+    testAssemblyVer2: 'D:\a\1\s\G9ScheduleNUnitTest\bin\Release\net40\G9ScheduleNUnitTest.dll'
     testFiltercriteria: FullyQualifiedName~G9ScheduleNUnitTest
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
