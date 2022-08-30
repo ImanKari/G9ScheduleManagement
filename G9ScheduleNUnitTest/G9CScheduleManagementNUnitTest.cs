@@ -32,7 +32,7 @@ namespace G9ScheduleNUnitTest
                 .AddErrorCallBack(exception => { Assert.Fail($"Schedule error!\n{exception.StackTrace}"); });
 
             TestContext.WriteLine($"Sleep Start DateTime: {DateTime.Now:s}");
-            Thread.Sleep(3369);
+            Thread.Sleep(3999);
             TestContext.WriteLine($"Sleep End DateTime: {DateTime.Now:s}");
             TestContext.WriteLine($"The count of number is: {counter}");
             if (counter >= 3)

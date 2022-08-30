@@ -1,12 +1,12 @@
-﻿using System;
+﻿#if NET35
+using System.ComponentModel;
+#endif
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using G9ScheduleManagement.G9ScheduleItem;
-#if NET35
-using System.ComponentModel;
-#endif
-
 #if !NET35
 using System.Threading.Tasks;
 #endif
@@ -262,7 +262,6 @@ namespace G9ScheduleManagement
                         Thread.Sleep(1);
                     }
             }, stoppingToken);
-            currentTask.Start();
             return currentTask;
 #else
             await Task.Run(async () =>
@@ -851,7 +850,6 @@ namespace G9ScheduleManagement
                     _waitForFinishScheduleHandler = false;
                 }
             }, stoppingToken);
-            oTask.Start();
             return oTask;
 #else
             var oTask = Task.Run(() =>
