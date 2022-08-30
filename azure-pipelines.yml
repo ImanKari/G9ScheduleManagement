@@ -29,6 +29,7 @@ steps:
     configuration: '$(buildConfiguration)'
 
 - task: VSTest@2
+  displayName: UnitTest - Target framework net35
   inputs:
     testSelector: testAssemblies
     testAssemblyVer2: 'D:\a\1\s\G9ScheduleNUnitTest\bin\Release\net35\G9ScheduleNUnitTest.dll'
@@ -37,9 +38,37 @@ steps:
     configuration: '$(buildConfiguration)'
 
 - task: VSTest@2
+  displayName: UnitTest - Target framework net40
   inputs:
     testSelector: testAssemblies
     testAssemblyVer2: 'D:\a\1\s\G9ScheduleNUnitTest\bin\Release\net40\G9ScheduleNUnitTest.dll'
+    testFiltercriteria: FullyQualifiedName~G9ScheduleNUnitTest
+    platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'
+
+- task: VSTest@2
+  displayName: UnitTest - Target framework net45
+  inputs:
+    testSelector: testAssemblies
+    testAssemblyVer2: 'D:\a\1\s\G9ScheduleNUnitTest\bin\Release\net45\G9ScheduleNUnitTest.dll'
+    testFiltercriteria: FullyQualifiedName~G9ScheduleNUnitTest
+    platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'
+
+- task: VSTest@2
+  displayName: UnitTest - Target framework netstandard2.0
+  inputs:
+    testSelector: testAssemblies
+    testAssemblyVer2: 'D:\a\1\s\G9ScheduleNUnitTest\bin\Release\netstandard2.0\G9ScheduleNUnitTest.dll'
+    testFiltercriteria: FullyQualifiedName~G9ScheduleNUnitTest
+    platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'
+
+- task: VSTest@2
+  displayName: UnitTest - Target framework netstandard2.1
+  inputs:
+    testSelector: testAssemblies
+    testAssemblyVer2: 'D:\a\1\s\G9ScheduleNUnitTest\bin\Release\netstandard2.1\G9ScheduleNUnitTest.dll'
     testFiltercriteria: FullyQualifiedName~G9ScheduleNUnitTest
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
