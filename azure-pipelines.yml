@@ -53,14 +53,6 @@ steps:
     configuration: '$(buildConfiguration)'
 
 - task: VSTest@2
-  displayName: UnitTest net48 ns2.0
-  inputs:
-    testSelector: testAssemblies
-    testAssemblyVer2: 'D:\a\1\s\G9ScheduleNUnitTest\bin\Release\net48\G9ScheduleNUnitTest.dll'
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
-
-- task: VSTest@2
   displayName: UnitTest net5.0 nsd2.1
   inputs:
     testSelector: testAssemblies
