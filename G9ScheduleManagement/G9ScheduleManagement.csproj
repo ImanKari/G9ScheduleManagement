@@ -5,7 +5,7 @@
     <StartupObject />
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-    <Version>3.0.0.1</Version>
+    <Version>3.0.1.2</Version>
     <Authors>Iman Kari</Authors>
     <Company>G9Studio</Company>
     <Description>Schedule Management</Description>
@@ -14,16 +14,20 @@
     <PackageIconUrl></PackageIconUrl>
     <PackageProjectUrl>http://www.G9TM.com</PackageProjectUrl>
     <Product>G9 Schedule Management</Product>
-    <AssemblyVersion>3.0.0.1</AssemblyVersion>
-    <FileVersion>3.0.0.1</FileVersion>
+    <AssemblyVersion>3.0.1.2</AssemblyVersion>
+    <FileVersion>3.0.1.2</FileVersion>
     <PackageIcon>G9-Icon.png</PackageIcon>
     <RepositoryUrl>https://github.com/ImanKari/G9ScheduleManagement</RepositoryUrl>
     <RepositoryType>GitHub</RepositoryType>
     <PackageTags>Schedule Scheduler Management ScheduleManagement</PackageTags>
-    <PackageReleaseNotes>-- Added background service for .net core
--- Added multi target frameworks (Supported 3.5, 4.0, 4.5)
--- Added multi target framework tests
--- Redesigned structure
+    <PackageReleaseNotes>-- Added a condition part for the scheduler
+-- Added a custom condition for the time that checks each day independently
+-- Added generate the custom event with custom condition
+-- Added generate the custom event on value change of an object
+-- Added multi-target framework tests
+-- Added an Enum for specifying the reason for dispose
+-- Rewrote the document comments
+-- Redesigned the structure of project
 -- Completed tests</PackageReleaseNotes>
     <NeutralLanguage>en</NeutralLanguage>
 
@@ -40,9 +44,6 @@
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
-	<PropertyGroup>
-		<TargetFrameworkMonikerAssemblyAttributesPath>$([System.IO.Path]::Combine('$(IntermediateOutputPath)','$(TargetFrameworkMoniker).AssemblyAttributes$(DefaultLanguageSourceExtension)'))</TargetFrameworkMonikerAssemblyAttributesPath>
-	</PropertyGroup>
 	<ItemGroup>
 		<EmbeddedFiles Include="$(GeneratedAssemblyInfoFile)" />
 	</ItemGroup>
@@ -72,6 +73,11 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions">
       <Version>6.0.0</Version>
     </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Enum\" />
+    <Folder Include="DataType\" />
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
