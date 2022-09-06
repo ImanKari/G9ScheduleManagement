@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using G9ScheduleManagement.Enum;
-#if !NET35 && !NET40
-using System.Threading;
-#endif
 
 namespace G9ScheduleManagement.G9ScheduleItem
 {
@@ -14,8 +11,9 @@ namespace G9ScheduleManagement.G9ScheduleItem
     {
         #region Methods
 
-        public G9DtScheduler()
+        public G9DtScheduler(G9Scheduler scheduler)
         {
+            Scheduler = scheduler;
             StartTime = EndTime = CustomPeriodDuration = TimeSpan.Zero;
             StartDateTime = EndDateTime = DateTime.MinValue;
             CountOfRepetitions = 0;
@@ -26,9 +24,14 @@ namespace G9ScheduleManagement.G9ScheduleItem
         #region Fields
 
         /// <summary>
+        ///     Field for accessing to scheduler object
+        /// </summary>
+        public readonly G9Scheduler Scheduler;
+
+        /// <summary>
         ///     A collection for storing functions related to checking custom conditions.
         /// </summary>
-        public HashSet<Func<bool>> ConditionFunctions = null;
+        public HashSet<Func<G9Scheduler, bool>> ConditionFunctions = null;
 
         /// <summary>
         ///     Helper field for counting the number of repetitions.
@@ -38,47 +41,61 @@ namespace G9ScheduleManagement.G9ScheduleItem
         /// <summary>
         ///     A collection for storing callbacks related to disposing time.
         /// </summary>
-        public HashSet<Action<G9EDisposeReason>> DisposeCallBack = null;
+        public HashSet<Action<G9Scheduler, G9EDisposeReason>> DisposeCallbacks = null;
 
         /// <summary>
         ///     A collection for storing callbacks related to error time.
         /// </summary>
-        public HashSet<Action<Exception>> ErrorCallBack = null;
+        public HashSet<Action<G9Scheduler, Exception>> ErrorCallbacks = null;
 
         /// <summary>
         ///     A collection for storing callbacks related to finishing time.
         /// </summary>
-        public HashSet<Action> FinishCallBack = null;
+        public HashSet<Action<G9Scheduler, G9EFinishingReason, string>> FinishCallbacks = null;
 
         /// <summary>
         ///     A field for storing the last execution date time.
         /// </summary>
-        public DateTime LastRunDateTime = DateTime.Now;
+        public DateTime LastRunDateTime = DateTime.MinValue;
 
         /// <summary>
-        ///     A collection for storing callbacks related to resuming time.
+        ///     A collection for storing callbacks related to the pre-execution time.
         /// </summary>
-        public HashSet<Action> ResumeCallBack = null;
+        public HashSet<Action<G9Scheduler>> PreExecutionCallbacks = null;
 
         /// <summary>
         ///     A collection for storing callbacks related to the main task of the scheduler.
         /// </summary>
-        public HashSet<Action> ScheduleAction = null;
+        public HashSet<Action<G9Scheduler>> SchedulerActions = null;
+
+        /// <summary>
+        ///     A collection for storing callbacks related to the end-execution time.
+        /// </summary>
+        public HashSet<Action<G9Scheduler>> EndExecutionCallbacks = null;
 
         /// <summary>
         ///     Specifies the current state of the scheduler.
         /// </summary>
-        public G9ESchedulerState SchedulerState = G9ESchedulerState.None;
+        public G9ESchedulerState SchedulerState = G9ESchedulerState.NoneState;
+
+        /// <summary>
+        ///     Specifies whether the scheduler queue is enabled or not.
+        ///     <para />
+        ///     If it's set "true," it means that each new scheduler execution must wait for the older one to finish.
+        ///     <para />
+        ///     If it's set as "false," its meaning is each new scheduler is executed without considering the older one.
+        /// </summary>
+        public bool IsSchedulerQueueEnable = true;
 
         /// <summary>
         ///     A collection for storing callbacks related to starting time.
         /// </summary>
-        public HashSet<Action> StartCallBack = null;
+        public HashSet<Action<G9Scheduler>> StartCallbacks = null;
 
         /// <summary>
         ///     A collection for storing callbacks related to stopping time.
         /// </summary>
-        public HashSet<Action> StopCallBack = null;
+        public HashSet<Action<G9Scheduler>> StopCallbacks = null;
 
         #endregion
 
@@ -222,6 +239,7 @@ namespace G9ScheduleManagement.G9ScheduleItem
 
         /// <summary>
         ///     Specifies the number of repetitions for scheduled action.
+        ///     <para />
         ///     If it's set to 0, its meaning is that it doesn't have a limitation for repetition (indeed, it's infinite).
         /// </summary>
         public int CountOfRepetitions
@@ -238,6 +256,16 @@ namespace G9ScheduleManagement.G9ScheduleItem
         ///     Specifies that a custom period duration between each execution is set or not
         /// </summary>
         public bool HasCustomCountOfRepetitions { private set; get; }
+
+        /// <summary>
+        ///     A field for storing the date time of setting repetition condition.
+        /// </summary>
+        public DateTime CountOfRepetitionsDateTime;
+
+        /// <summary>
+        ///     Specifies that the repetition condition must check per day or in total.
+        /// </summary>
+        public G9ERepetitionConditionType RepetitionConditionType;
 
         #endregion
     }

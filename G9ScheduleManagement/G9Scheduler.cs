@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using G9ScheduleManagement.Enum;
 using G9ScheduleManagement.G9ScheduleItem;
-#if !NET35
+#if !NET35 && !NET40
 using System.Threading.Tasks;
 #endif
 
@@ -18,7 +18,7 @@ namespace G9ScheduleManagement
         /// <summary>
         ///     An object for managing lock the multi-thread access process.
         /// </summary>
-        private static object _lockCollectionForScheduleTask = new object();
+        private static readonly object LockCollectionForScheduleTask = new object();
 
         /// <summary>
         ///     A category for storing run-time schedulers
@@ -34,7 +34,7 @@ namespace G9ScheduleManagement
             get
             {
 #if NET35
-                lock (_lockCollectionForScheduleTask)
+                lock (LockCollectionForScheduleTask)
                 {
                     return SchedulersCollection.Count;
                 }
@@ -50,7 +50,7 @@ namespace G9ScheduleManagement
 #if NET35 || NET40
         private static bool _cancelToken = false;
 #else
-        private static CancellationTokenSource _cancelToken = new CancellationTokenSource();
+        private static readonly CancellationTokenSource CancelToken = new CancellationTokenSource();
 #endif
 
         /// <summary>
@@ -64,19 +64,12 @@ namespace G9ScheduleManagement
         private static uint _scheduleIdentityIndex = 1;
 
         /// <summary>
-        ///     Specifies the unique identity of the scheduler
+        ///     Specifies the unique identity of the scheduler.
         /// </summary>
         public uint ScheduleIdentity { private set; get; }
 
         /// <summary>
-        ///     Specifies the number of concurrent schedulers in runtime (consists of total created objects).
-        /// </summary>
-        // ReSharper disable once InconsistentlySynchronizedField
-        public int NumberOfExecution => _scheduler.CountOfRepetitionsCounter;
-
-
-        /// <summary>
-        ///     Specifies the state of the current scheduler.
+        ///     Specifies the current state of the scheduler.
         /// </summary>
         public G9ESchedulerState SchedulerState
         {

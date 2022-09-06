@@ -28,14 +28,12 @@ namespace G9ScheduleNUnitTest
         {
             var counter = 0;
             var schedule = new G9Scheduler()
-                .AddScheduleAction(() => { counter++; })
-                .SetPeriodDurationBetweenExecutions(TimeSpan.FromSeconds(1))
-                .AddErrorCallback(exception => { Assert.Fail($"Schedule error!\n{exception.StackTrace}"); })
-                .StartOrResume();
+                .AddSchedulerAction(s => { counter++; })
+                .SetDurationPeriodBetweenExecutions(TimeSpan.FromSeconds(1))
+                .AddErrorCallback((s, exception) => { Assert.Fail($"Schedule error!\n{exception.StackTrace}"); })
+                .Start();
 
-            // Wait for finishing
-            while (schedule.SchedulerState != G9ESchedulerState.StartedWithExecution) Thread.Sleep(39);
-            Thread.Sleep(3999);
+            Thread.Sleep(3099);
             if (counter < 3)
                 Assert.Fail("Fail run");
         }
@@ -50,8 +48,9 @@ namespace G9ScheduleNUnitTest
             var onDisposeCheck = false;
             var onFinishCheck = false;
             var onStopCheck = false;
-            var onResumeCheck = false;
             var onStartCheck = false;
+            var onPreExecution = false;
+            var onEndExecution = false;
 
             var specifiedStartDateTime = DateTime.Now.AddSeconds(3);
             var specifiedEndDateTime = DateTime.Now.AddSeconds(16);
@@ -59,7 +58,7 @@ namespace G9ScheduleNUnitTest
             var counter = 0;
             var schedule = new G9Scheduler();
             schedule
-                .AddScheduleAction(() =>
+                .AddSchedulerAction(s =>
                 {
                     // Check time of first execution.
                     if (DateTime.Now < specifiedStartDateTime)
@@ -71,63 +70,71 @@ namespace G9ScheduleNUnitTest
                     if (counter == 6)
                         throw new Exception("It's okay");
                 })
-                .AddErrorCallback(ex =>
+                .AddErrorCallback((s, ex) =>
                 {
                     errorCheck = true;
                     Assert.True(ex.Message == "It's okay");
                 })
-                .AddCondition(() =>
+                .AddCondition(s =>
                 {
                     conditionCheck = true;
                     return true;
                 })
-                .AddDisposeCallback(reason =>
+                .AddDisposeCallback((s, reason) =>
                 {
                     onDisposeCheck = true;
                     Assert.True(reason == G9EDisposeReason.DisposedByMethod);
                 })
-                .AddFinishCallback(() => onFinishCheck = true)
-                .AddStopCallback(() => onStopCheck = true)
-                .AddResumeCallback(() => onResumeCheck = true)
-                .AddStartCallback(() => onStartCheck = true)
-                .SetPeriodDurationBetweenExecutions(TimeSpan.FromSeconds(1))
+                .AddFinishCallback((s, reason, text) =>
+                {
+                    Assert.True(reason == G9EFinishingReason.FinishedByEndDateTimeCondition);
+                    onFinishCheck = true;
+                })
+                .AddStopCallback(s => onStopCheck = true)
+                .AddStartCallback(s => onStartCheck = true)
+                // Pre && End execution
+                .AddPreExecutionCallback(s => onPreExecution = true)
+                .AddEndExecutionCallback(s => onEndExecution = true)
+                .SetDurationPeriodBetweenExecutions(TimeSpan.FromSeconds(1))
                 // The first execution must be done after 3 seconds
                 .SetStartDateTime(specifiedStartDateTime)
                 .SetEndDateTime(specifiedEndDateTime);
 
-            Assert.True(schedule.SchedulerState == G9ESchedulerState.Initialized);
+            Assert.True(schedule.SchedulerState == G9ESchedulerState.InitializedState);
 
             // Start
-            schedule.StartOrResume();
-            Assert.True(schedule.SchedulerState == G9ESchedulerState.StartedWithoutExecution);
+            schedule.Start();
+            Assert.True(schedule.SchedulerState == G9ESchedulerState.StartedStateWithoutExecution);
 
             Thread.Sleep(3369);
 
             // After first execution
 
-            Assert.True(schedule.SchedulerState == G9ESchedulerState.StartedWithExecution);
+            Assert.True(schedule.SchedulerState == G9ESchedulerState.StartedStateOnPreExecution ||
+                        schedule.SchedulerState == G9ESchedulerState.StartedStateOnEndExecution);
 
             // Testing the process of stop callback
             schedule.Stop();
-            Assert.True(schedule.SchedulerState == G9ESchedulerState.Paused);
+            Assert.True(schedule.SchedulerState == G9ESchedulerState.PausedState);
 
             // Resumed
-            schedule.StartOrResume();
-            Assert.True(schedule.SchedulerState == G9ESchedulerState.ResumedWithoutExecution ||
-                        schedule.SchedulerState == G9ESchedulerState.ResumedWithExecution);
+            schedule.Start();
+            Assert.True(schedule.SchedulerState == G9ESchedulerState.StartedStateWithoutExecution ||
+                        schedule.SchedulerState == G9ESchedulerState.StartedStateOnPreExecution ||
+                        schedule.SchedulerState == G9ESchedulerState.StartedStateOnEndExecution);
 
             // Wait for finishing
-            while (schedule.SchedulerState != G9ESchedulerState.Finished) Thread.Sleep(39);
+            while (schedule.SchedulerState != G9ESchedulerState.FinishedState) Thread.Sleep(39);
 
             // Finished
-            Assert.True(schedule.SchedulerState == G9ESchedulerState.Finished);
+            Assert.True(schedule.SchedulerState == G9ESchedulerState.FinishedState);
 
             // Testing the process of disposing
             schedule.Dispose();
 
             // Checking the whole situation
             Assert.True(errorCheck && conditionCheck && onDisposeCheck && onFinishCheck && onStopCheck &&
-                        onResumeCheck && onStartCheck);
+                        onStartCheck && onPreExecution && onEndExecution);
         }
 
         [Test]
@@ -141,14 +148,14 @@ namespace G9ScheduleNUnitTest
 
             var schedule =
                 new G9Scheduler()
-                    .AddScheduleAction(() => { executionTime = DateTime.Now; })
-                    .AddCondition(() => DateTime.Now > specifiedDateTime)
-                    .SetCountOfRepetitions(1)
-                    .StartOrResume();
+                    .AddSchedulerAction(s => { executionTime = DateTime.Now; })
+                    .AddCondition(s => DateTime.Now > specifiedDateTime)
+                    .SetCountOfRepetitions(1, G9ERepetitionConditionType.InTotal)
+                    .Start();
 
 
             // Wait for finishing
-            while (schedule.SchedulerState != G9ESchedulerState.Finished) Thread.Sleep(39);
+            while (schedule.SchedulerState != G9ESchedulerState.FinishedState) Thread.Sleep(39);
 
             Assert.True(executionTime > specifiedDateTime);
         }
@@ -162,16 +169,16 @@ namespace G9ScheduleNUnitTest
             var execution = false;
 
             // Scheduler as a event on condition
-            var testSchedulerAsEvent = G9Scheduler.GenerateCustomEvent(() => DateTime.Now > specifiedDateTime,
-                    () =>
+            var testSchedulerAsEvent = G9Scheduler.GenerateCustomEvent(s => DateTime.Now > specifiedDateTime,
+                    s =>
                     {
                         Assert.True(DateTime.Now > specifiedDateTime);
                         execution = true;
                     })
-                .StartOrResume();
+                .Start();
 
             // Wait for execution
-            while (testSchedulerAsEvent.SchedulerState != G9ESchedulerState.StartedWithExecution) Thread.Sleep(39);
+            while (!execution) Thread.Sleep(39);
 
             Assert.True(execution);
             testSchedulerAsEvent.Dispose();
@@ -187,11 +194,12 @@ namespace G9ScheduleNUnitTest
                         Assert.True(oldName == currentName && newName == nextName);
                         execution = true;
                     })
-                .StartOrResume();
+                .Start();
             testClass.Name = nextName;
 
             // Wait for execution
-            while (testSchedulerAsEventOnValueChange.SchedulerState != G9ESchedulerState.StartedWithExecution)
+            while (testSchedulerAsEventOnValueChange.SchedulerState != G9ESchedulerState.StartedStateOnPreExecution &&
+                   testSchedulerAsEventOnValueChange.SchedulerState != G9ESchedulerState.StartedStateOnEndExecution)
                 Thread.Sleep(39);
             Assert.True(execution);
             testSchedulerAsEventOnValueChange.Dispose();
@@ -227,7 +235,7 @@ namespace G9ScheduleNUnitTest
             var endTime = G9DtTime.ParseTimeSpan(currentDateTime.TimeOfDay.Add(new TimeSpan(0, 0, 9)));
 
             var scheduler = new G9Scheduler()
-                .AddScheduleAction(() =>
+                .AddSchedulerAction(s =>
                 {
                     var runningDateTime = DateTime.Now;
                     Assert.True(runningDateTime.TimeOfDay > startTime.ConvertToTimeSpan() &&
@@ -236,7 +244,7 @@ namespace G9ScheduleNUnitTest
                 })
                 .SetStartTime(startTime)
                 .SetEndTime(endTime)
-                .StartOrResume();
+                .Start();
 
             Thread.Sleep(12_000);
 
@@ -254,31 +262,31 @@ namespace G9ScheduleNUnitTest
                 // Checks for starting without the scheduled action
                 try
                 {
-                    scheduler.StartOrResume();
+                    scheduler.Start();
                     Assert.Fail();
                 }
                 catch (Exception ex)
                 {
                     Assert.True(ex.Message ==
-                                $"The scheduler for starting needs to have at least one added schedule action. For adding, you can use the method '{nameof(G9Scheduler.AddScheduleAction)}.'");
+                                $"The scheduler for starting needs to have at least one added schedule action. For adding, you can use the method '{nameof(G9Scheduler.AddSchedulerAction)}.'");
                 }
 
                 // Checks for adding a null item for the scheduled action
                 try
                 {
-                    scheduler.AddScheduleAction(null);
+                    scheduler.AddSchedulerAction(null);
                     Assert.Fail();
                 }
                 catch (Exception ex)
                 {
                     Assert.True(ex.Message.StartsWith(
-                        "The specified item for adding cannot be null (here is 'scheduleAction')"));
+                        "The specified item for adding cannot be null (here is 'schedulerAction')"));
                 }
 
                 // Checks for removing an item (here is a condition) that does not exist (not added for this scheduler)
                 try
                 {
-                    scheduler.RemoveCondition(() => true);
+                    scheduler.RemoveCondition(s => true);
                     Assert.Fail();
                 }
                 catch (Exception ex)
@@ -304,7 +312,143 @@ namespace G9ScheduleNUnitTest
         [Order(8)]
         public void TestAddingAndRemovingThings()
         {
+            // Set callbacks and function
+            Func<G9Scheduler, bool> condition = s => true;
+            Action<G9Scheduler> schedulerAction = s => { TestContext.WriteLine("schedulerAction"); };
+            Action<G9Scheduler> startCallback = s => { TestContext.WriteLine("startCallback"); };
+            Action<G9Scheduler> stopCallback = s => { TestContext.WriteLine("stopCallback"); };
+            Action<G9Scheduler, G9EFinishingReason, string> finishCallback = (s, reason, text) =>
+            {
+                TestContext.WriteLine($"finishCallback: {reason} | text: {text}");
+                Assert.True(reason == G9EFinishingReason.FinishedByCustomRequest && text == "Custom request for finishing!");
+            };
+            Action<G9Scheduler, Exception> errorCallback = (s, ex) =>
+            {
+                TestContext.WriteLine($"errorCallback: {ex.Message}");
+            };
+            Action<G9Scheduler, G9EDisposeReason> disposeCallback = (s, reason) =>
+            {
+                TestContext.WriteLine($"disposeCallback: {reason}");
+            };
+
+            // Initialize
             var scheduler = new G9Scheduler();
+
+            // Set callbacks - conditions - etc
+            scheduler
+                .AddSchedulerAction(schedulerAction)
+                .AddCondition(condition)
+                .AddStartCallback(startCallback)
+                .AddStopCallback(stopCallback)
+                .AddFinishCallback(finishCallback)
+                .AddErrorCallback(errorCallback)
+                .AddDisposeCallback(disposeCallback)
+                .SetStartDateTime(DateTime.Now)
+                .SetEndDateTime(DateTime.Now.AddMonths(1))
+                .SetStartTime(new G9DtTime(6, 0, 0))
+                .SetEndTime(new G9DtTime(16, 0, 0))
+                .SetCountOfRepetitions(99, G9ERepetitionConditionType.PerDay)
+                .SetDurationPeriodBetweenExecutions(TimeSpan.FromSeconds(1));
+
+            // Starting
+            scheduler.Start();
+
+            Thread.Sleep(1999);
+
+            // Remove callbacks
+            scheduler
+                .RemoveCondition(condition)
+                .RemoveStartCallback(startCallback)
+                .RemoveStopCallback(stopCallback)
+                .RemoveFinishCallback(finishCallback)
+                .RemoveErrorCallback(errorCallback)
+                .RemoveDisposeCallback(disposeCallback);
+
+            // Set (update) conditions
+            scheduler
+                .SetStartDateTime(DateTime.Now.AddSeconds(3))
+                .SetEndDateTime(DateTime.Now.AddMonths(2))
+                .SetStartTime(new G9DtTime(8, 0, 0))
+                .SetEndTime(new G9DtTime(12, 0, 0))
+                .SetCountOfRepetitions(999, G9ERepetitionConditionType.PerDay)
+                .SetDurationPeriodBetweenExecutions(TimeSpan.FromMilliseconds(500));
+
+            Thread.Sleep(339);
+
+            // Set callbacks
+            scheduler
+                .AddSchedulerAction(schedulerAction)
+                .AddCondition(condition)
+                .AddStartCallback(startCallback)
+                .AddStopCallback(stopCallback)
+                .AddFinishCallback(finishCallback)
+                .AddErrorCallback(errorCallback)
+                .AddDisposeCallback(disposeCallback);
+
+            Thread.Sleep(1999);
+
+            // An exception is expected on removing the scheduler action in runtime.
+            // A scheduler can't work without any scheduler action.
+            try
+            {
+                scheduler.RemoveSchedulerAction(schedulerAction);
+                Assert.Fail();
+            }
+            catch (Exception ex)
+            {
+                Assert.True(ex.Message == "A scheduler can't work without any scheduler action.");
+            }
+
+            // The previous exception doesn't occur on stopping time, and it's changeable.
+            scheduler.Finish("Custom request for finishing!");
+            scheduler.Stop();
+            scheduler.RemoveSchedulerAction(schedulerAction);
+            scheduler.AddSchedulerAction(schedulerAction);
+            scheduler.Start();
+
+            Thread.Sleep(1999);
+
+            scheduler.Dispose();
+
+            Thread.Sleep(999);
+        }
+
+        [Test]
+        [Order(8)]
+        public void TestSchedulerQueue()
+        {
+            var counter = 0;
+
+            // Test with queue
+            var scheduler = new G9Scheduler()
+                .AddSchedulerAction(s =>
+                {
+                    Thread.Sleep(1000);
+                    counter++;
+                })
+                .Start();
+
+            Thread.Sleep(1369);
+            Assert.True(counter == 1);
+            TestContext.WriteLine($"Counter (With Queue): {counter}");
+            scheduler.Dispose();
+
+            // Test without queue
+            counter = 0;
+            scheduler = new G9Scheduler()
+                .AddSchedulerAction(s =>
+                {
+                    Thread.Sleep(1000);
+                    counter++;
+                })
+                // Disable queue
+                .SetQueueMode(false)
+                .Start();
+
+            Thread.Sleep(1369);
+            Assert.True(counter > 1);
+            TestContext.WriteLine($"Counter (Without Queue): {counter}");
+            scheduler.Dispose();
         }
     }
 }

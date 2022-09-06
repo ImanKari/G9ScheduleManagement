@@ -3,65 +3,55 @@
     /// <summary>
     ///     An enum for specifying the current state of a scheduler
     /// </summary>
-    public enum G9ESchedulerState
+    public enum G9ESchedulerState : byte
     {
         /// <summary>
-        /// None
+        ///     None
         /// </summary>
-        None,
+        NoneState,
 
         /// <summary>
-        /// Specifies that the scheduler just initialized
+        ///     Specifies that the scheduler just initialized
         /// </summary>
-        Initialized,
+        InitializedState,
 
         /// <summary>
-        ///     Specifies that the scheduler was Started.
+        ///     Specifies that the scheduler was Started (or resumed).
         ///     <para />
-        ///     This state happens when the scheduler has been started, but according to specified conditions, it hasn't had
+        ///     This state happens when the scheduler has been started (or resumed), but according to specified conditions, it
+        ///     hasn't had
         ///     execution.
         /// </summary>
-        StartedWithoutExecution,
+        StartedStateWithoutExecution,
 
         /// <summary>
-        ///     Specifies that the scheduler was Started.
+        ///     Specifies that the scheduler was Started (or resumed).
         ///     <para />
-        ///     This state happens when the scheduler has started and has had at least one execution.
+        ///     This state happens when the scheduler has started (or resumed) and has had at least one current unfinished
+        ///     execution.
         /// </summary>
-        StartedWithExecution,
+        StartedStateOnPreExecution,
+
+        /// <summary>
+        ///     Specifies that the scheduler was Started (or resumed).
+        ///     <para />
+        ///     This state happens when the scheduler has started (or resumed) and has had at least one current finished execution.
+        /// </summary>
+        StartedStateOnEndExecution,
 
         /// <summary>
         ///     Specifies that the scheduler was paused.
         /// </summary>
-        Paused,
+        PausedState,
 
         /// <summary>
-        ///     Specifies that the scheduler was resumed.
-        ///     <para />
-        ///     This state happens when the scheduler starts again after a stop.
-        ///     <para />
-        ///     In addition, specifies that the scheduler has been started, but according to specified conditions, it hasn't had
-        ///     execution.
-        /// </summary>
-        ResumedWithoutExecution,
-
-        /// <summary>
-        ///     Specifies that the scheduler was resumed.
-        ///     <para />
-        ///     This state happens when the scheduler starts again after a stop.
-        ///     <para />
-        ///     In addition, specifies that the scheduler has started and has had at least one execution.
-        /// </summary>
-        ResumedWithExecution,
-
-        /// <summary>
-        ///     Specifies that the scheduler has had at least one error.
+        ///     Specifies that the scheduler has had at least one error (Exception).
         /// </summary>
         HasError,
 
         /// <summary>
         ///     Specifies that the scheduler task was finished.
         /// </summary>
-        Finished
+        FinishedState
     }
 }

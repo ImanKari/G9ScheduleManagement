@@ -35,7 +35,7 @@ namespace G9ScheduleManagement
         {
             if (ScheduleIdentity != 0) return;
             Initialize(true);
-            SchedulerState = G9ESchedulerState.Initialized;
+            SchedulerState = G9ESchedulerState.InitializedState;
         }
 
         /// <summary>
@@ -47,7 +47,7 @@ namespace G9ScheduleManagement
             if (!SchedulersCollection.ContainsKey(scheduleIdentity))
                 throw new Exception($"The scheduler by this unique identity '{scheduleIdentity}' was not found.");
             ScheduleIdentity = scheduleIdentity;
-            lock (_lockCollectionForScheduleTask)
+            lock (LockCollectionForScheduleTask)
             {
                 _scheduler = SchedulersCollection[ScheduleIdentity];
             }
@@ -58,16 +58,16 @@ namespace G9ScheduleManagement
         /// <inheritdoc />
         public void Dispose()
         {
-            if (_scheduler.DisposeCallBack != null)
-                foreach (var action in _scheduler.DisposeCallBack)
-                    action?.Invoke(G9EDisposeReason.DisposedByMethod);
-            _scheduler = null;
-            lock (_lockCollectionForScheduleTask)
+            lock (LockCollectionForScheduleTask)
             {
                 SchedulersCollection.Remove(ScheduleIdentity);
             }
 
             ScheduleIdentity = 0;
+            if (_scheduler.DisposeCallbacks != null)
+                foreach (var action in _scheduler.DisposeCallbacks)
+                    action?.Invoke(this, G9EDisposeReason.DisposedByMethod);
+            _scheduler = null;
         }
 
         /// <summary>
@@ -77,17 +77,17 @@ namespace G9ScheduleManagement
         private void Initialize(bool addNewSchedule)
         {
             if (addNewSchedule)
-                lock (_lockCollectionForScheduleTask)
+                lock (LockCollectionForScheduleTask)
                 {
                     ScheduleIdentity = _scheduleIdentityIndex++;
-                    _scheduler = new G9DtScheduler();
+                    _scheduler = new G9DtScheduler(this);
                     // Add schedule
                     SchedulersCollection.Add(ScheduleIdentity, _scheduler);
                 }
 
             if (_mainTask != null) return;
 
-            lock (_lockCollectionForScheduleTask)
+            lock (LockCollectionForScheduleTask)
             {
                 if (_mainTask != null) return;
 #if NET35 || NET40
@@ -98,7 +98,7 @@ namespace G9ScheduleManagement
                 _mainTask.Start();
 #else
                 _mainTask = Task.Factory.StartNew(async () => await ScheduleHandler(),
-                    _cancelToken.Token, TaskCreationOptions.LongRunning, TaskScheduler.Current);
+                    CancelToken.Token, TaskCreationOptions.LongRunning, TaskScheduler.Current);
 #endif
             }
         }
@@ -118,7 +118,7 @@ namespace G9ScheduleManagement
 #else
             var task = Task.Factory.StartNew(async () =>
             {
-                while (!_cancelToken.IsCancellationRequested)
+                while (!CancelToken.IsCancellationRequested)
                 {
 #endif
 
@@ -126,36 +126,44 @@ namespace G9ScheduleManagement
                     var currentDateTime = DateTime.Now;
                     var query = SchedulersCollection
                         .Where(s =>
-                            s.Value.SchedulerState != G9ESchedulerState.Paused &&
-                            s.Value.SchedulerState != G9ESchedulerState.Initialized &&
-                            s.Value.SchedulerState != G9ESchedulerState.Finished &&
-                            s.Value.ScheduleAction != null &&
+                            s.Value.SchedulerState != G9ESchedulerState.PausedState &&
+                            s.Value.SchedulerState != G9ESchedulerState.InitializedState &&
+                            s.Value.SchedulerState != G9ESchedulerState.FinishedState &&
+                            s.Value.SchedulerActions != null &&
                             (!s.Value.HasStartDateTime || s.Value.StartDateTime <= currentDateTime) &&
                             (!s.Value.HasStartTime || s.Value.StartTime <= currentDateTime.TimeOfDay) &&
-                            (!s.Value.HasEndTime || s.Value.EndTime >= currentDateTime.TimeOfDay)
+                            (!s.Value.HasEndTime || s.Value.EndTime >= currentDateTime.TimeOfDay) &&
+                            // Check queue
+                            (!s.Value.IsSchedulerQueueEnable ||
+                             s.Value.SchedulerState != G9ESchedulerState.StartedStateOnPreExecution)
                         )
                         .Select(s => s.Value);
 
                     G9DtScheduler[] scheduleList;
-                    lock (_lockCollectionForScheduleTask)
+                    lock (LockCollectionForScheduleTask)
                     {
                         scheduleList = query
                             .ToArray();
                     }
 #if NET35 || NET40
                 foreach (var scheduledItem in scheduleList)
-                    ScheduleItemHandler(scheduledItem, currentDateTime);
-                Thread.Sleep(100);
+                    new Thread(o => { ScheduleItemHandler(scheduledItem, currentDateTime); })
+                    {
+                        IsBackground = true
+                    }.Start();
+                Thread.Sleep(1);
 #else
-                    Parallel.ForEach(scheduleList, i => ScheduleItemHandler(i, currentDateTime));
-                    await Task.Delay(100);
+                    Parallel.ForEach(scheduleList, schedulerAction =>
+                        Task.Run(() => ScheduleItemHandler(schedulerAction, currentDateTime))
+                    );
+                    await Task.Delay(1);
 #endif
 
 #if NET35 || NET40
             }
 #else
                 }
-            }, _cancelToken.Token, TaskCreationOptions.AttachedToParent, TaskScheduler.Current);
+            }, CancelToken.Token, TaskCreationOptions.AttachedToParent, TaskScheduler.Current);
             await task;
 #endif
         }
@@ -169,13 +177,32 @@ namespace G9ScheduleManagement
         {
             try
             {
+                // Set pre execution status
+                scheduledItem.SchedulerState = G9ESchedulerState.StartedStateOnPreExecution;
+
+                // Run pre-execution callbacks
+                CollectionRunnerHelper(scheduledItem.PreExecutionCallbacks, scheduledItem.Scheduler);
+
                 // Checks the condition of the count of repetitions.
-                if (scheduledItem.HasCustomCountOfRepetitions &&
-                    scheduledItem.CountOfRepetitionsCounter >=
-                    scheduledItem.CountOfRepetitions)
+                if (scheduledItem.HasCustomCountOfRepetitions)
                 {
-                    FinishingHelper(scheduledItem);
-                    return;
+                    // The counter must reset daily if the checking type was set to per day.
+                    if (scheduledItem.RepetitionConditionType == G9ERepetitionConditionType.PerDay &&
+                        scheduledItem.CountOfRepetitionsDateTime.Day != DateTime.Now.Day)
+                    {
+                        scheduledItem.CountOfRepetitionsDateTime = DateTime.Now;
+                        scheduledItem.CountOfRepetitionsCounter = 0;
+                    }
+
+                    if (scheduledItem.CountOfRepetitionsCounter >=
+                        scheduledItem.CountOfRepetitions)
+                    {
+                        // The repetition condition can finish the scheduler when the repetition type isn't per day.
+                        if (scheduledItem.RepetitionConditionType == G9ERepetitionConditionType.InTotal)
+                            FinishingHelper(scheduledItem, G9EFinishingReason.FinishedByRepetitionCondition, null);
+
+                        return;
+                    }
                 }
 
                 // Checks the condition of the end date time.
@@ -184,27 +211,34 @@ namespace G9ScheduleManagement
                 if (scheduledItem.HasEndDateTime &&
                     scheduledItem.EndDateTime < currentDateTime)
                 {
-                    FinishingHelper(scheduledItem);
+                    FinishingHelper(scheduledItem, G9EFinishingReason.FinishedByEndDateTimeCondition, null);
                     return;
                 }
 
                 // Checks the condition of the period duration between each execution.
                 if (scheduledItem.HasCustomPeriodDuration && currentDateTime - scheduledItem.LastRunDateTime <
                     scheduledItem.CustomPeriodDuration)
+                {
+                    scheduledItem.SchedulerState = G9ESchedulerState.StartedStateOnEndExecution;
                     return;
+                }
 
                 // Checks the condition of specified custom conditions.
-                if (scheduledItem.ConditionFunctions != null && scheduledItem.ConditionFunctions.Any(s => !s()))
+                if (scheduledItem.ConditionFunctions != null &&
+                    scheduledItem.ConditionFunctions.Any(s => !s(scheduledItem.Scheduler)))
+                {
+                    scheduledItem.SchedulerState = G9ESchedulerState.StartedStateOnEndExecution;
                     return;
+                }
 
-                // Run schedule action
-                foreach (var action in scheduledItem.ScheduleAction) action?.Invoke();
+                // Run scheduler actions
+                CollectionRunnerHelper(scheduledItem.SchedulerActions, scheduledItem.Scheduler);
+
+                // Run pre-execution callbacks
+                CollectionRunnerHelper(scheduledItem.EndExecutionCallbacks, scheduledItem.Scheduler);
 
                 // The scheduler action is running if all former conditions are checked and passed.
-                scheduledItem.SchedulerState = scheduledItem.SchedulerState ==
-                                               G9ESchedulerState.ResumedWithoutExecution
-                    ? G9ESchedulerState.ResumedWithExecution
-                    : G9ESchedulerState.StartedWithExecution;
+                scheduledItem.SchedulerState = G9ESchedulerState.StartedStateOnEndExecution;
 
                 // Adds one number to the period counter during each run.
                 unchecked
@@ -218,11 +252,11 @@ namespace G9ScheduleManagement
             catch (Exception ex)
             {
                 scheduledItem.SchedulerState = G9ESchedulerState.HasError;
-                if (scheduledItem.ErrorCallBack != null)
-                    foreach (var action in scheduledItem.ErrorCallBack)
+                if (scheduledItem.ErrorCallbacks != null)
+                    foreach (var action in scheduledItem.ErrorCallbacks)
                         try
                         {
-                            action?.Invoke(ex);
+                            action?.Invoke(scheduledItem.Scheduler, ex);
                         }
                         catch
                         {
@@ -236,14 +270,20 @@ namespace G9ScheduleManagement
         /// </summary>
         private static void OnApplicationStop(G9EDisposeReason reason)
         {
-            lock (_lockCollectionForScheduleTask)
+#if NET35 || NET40
+            _cancelToken = false;
+#else
+            CancelToken.Cancel();
+#endif
+
+            lock (LockCollectionForScheduleTask)
             {
-                foreach (var disposeAction in SchedulersCollection
-                             .Where(scheduler => scheduler.Value.DisposeCallBack != null)
-                             .SelectMany(scheduler => scheduler.Value.DisposeCallBack))
+                foreach (var scheduler in SchedulersCollection
+                             .Where(scheduler => scheduler.Value.DisposeCallbacks != null).Select(s => s.Value))
+                foreach (var schedulerDisposeCallback in scheduler.DisposeCallbacks)
                     try
                     {
-                        disposeAction?.Invoke(reason);
+                        schedulerDisposeCallback?.Invoke(scheduler.Scheduler, reason);
                     }
                     catch
                     {
@@ -294,24 +334,51 @@ namespace G9ScheduleManagement
         }
 
         /// <summary>
+        ///     Method to execute a collection of actions
+        /// </summary>
+        private static void CollectionRunnerHelper(HashSet<Action<G9Scheduler>> category, G9Scheduler schedulerObject,
+            bool ignoreException = false)
+        {
+            if (ignoreException)
+            {
+                if (category == null) return;
+                foreach (var action in category)
+                    try
+                    {
+                        action?.Invoke(schedulerObject);
+                    }
+                    catch
+                    {
+                        // Ignore
+                    }
+            }
+            else
+            {
+                if (category == null) return;
+                foreach (var action in category)
+                    action?.Invoke(schedulerObject);
+            }
+        }
+
+        /// <summary>
         ///     Helper method to handle scheduler items that were finished.
         /// </summary>
-        private static void FinishingHelper(G9DtScheduler scheduledItem)
+        private static void FinishingHelper(G9DtScheduler scheduledItem, G9EFinishingReason finishingReason, string information)
         {
             try
             {
-                scheduledItem.SchedulerState = G9ESchedulerState.Finished;
+                scheduledItem.SchedulerState = G9ESchedulerState.FinishedState;
                 // Run all finish call back
-                if (scheduledItem.FinishCallBack != null)
-                    foreach (var actions in scheduledItem.FinishCallBack)
-                        actions?.Invoke();
+                if (scheduledItem.FinishCallbacks != null)
+                    foreach (var actions in scheduledItem.FinishCallbacks)
+                        actions?.Invoke(scheduledItem.Scheduler, finishingReason, information);
             }
             catch (Exception ex)
             {
-                foreach (var action in scheduledItem.ErrorCallBack)
+                foreach (var action in scheduledItem.ErrorCallbacks)
                     try
                     {
-                        action?.Invoke(ex);
+                        action?.Invoke(scheduledItem.Scheduler, ex);
                     }
                     catch
                     {

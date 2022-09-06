@@ -18,16 +18,16 @@ namespace G9ScheduleManagement
         ///     By default, it's set to 1 second.
         /// </param>
         /// <returns>A scheduler object</returns>
-        public static G9Scheduler GenerateCustomEvent(Func<bool> condition, Action callback,
+        public static G9Scheduler GenerateCustomEvent(Func<G9Scheduler, bool> condition, Action<G9Scheduler> callback,
             TimeSpan durationPeriodOfChecking = default)
         {
             if (Equals(durationPeriodOfChecking, default(TimeSpan)))
                 durationPeriodOfChecking = TimeSpan.FromSeconds(1);
 
             return new G9Scheduler()
-                .AddScheduleAction(callback)
+                .AddSchedulerAction(callback)
                 .AddCondition(condition)
-                .SetPeriodDurationBetweenExecutions(durationPeriodOfChecking);
+                .SetDurationPeriodBetweenExecutions(durationPeriodOfChecking);
         }
 
         /// <summary>
@@ -60,13 +60,13 @@ namespace G9ScheduleManagement
             var oldValue = selector(source);
 
             // Local function for condition.
-            bool CustomCondition()
+            bool CustomCondition(G9Scheduler scheduler)
             {
                 return !Equals(oldValue, selector(source));
             }
 
             // Local function for action0
-            void CustomAction()
+            void CustomAction(G9Scheduler scheduler)
             {
                 var old = oldValue;
                 oldValue = selector(source);

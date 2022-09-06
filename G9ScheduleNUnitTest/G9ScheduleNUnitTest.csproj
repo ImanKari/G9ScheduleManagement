@@ -17,4 +17,8 @@
     <ProjectReference Include="..\G9ScheduleManagement\G9ScheduleManagement.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Sample\" />
+  </ItemGroup>
+
 </Project>

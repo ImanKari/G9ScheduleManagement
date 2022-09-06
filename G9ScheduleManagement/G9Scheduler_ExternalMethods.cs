@@ -11,42 +11,135 @@ namespace G9ScheduleManagement
     public partial class G9Scheduler
     {
         /// <summary>
-        ///     Method to add an action for the scheduler that must perform by paying attention to set conditions.
+        ///     Method to add an action for the scheduler that must run by paying attention to set conditions.
         /// </summary>
-        /// <param name="scheduleAction">Specifies a custom action</param>
+        /// <param name="schedulerAction">
+        ///     Specifies a custom action
+        ///     <para />
+        ///     The first callback parameter provides access to the scheduler.
+        /// </param>
         /// <returns>Access to the main object.</returns>
-        public G9Scheduler AddScheduleAction(Action scheduleAction)
+        public G9Scheduler AddSchedulerAction(Action<G9Scheduler> schedulerAction)
         {
             CheckValidation();
-            CollectionAdderHelper(ref _scheduler.ScheduleAction, scheduleAction, nameof(scheduleAction));
+            CollectionAdderHelper(ref _scheduler.SchedulerActions, schedulerAction, nameof(schedulerAction));
             return this;
         }
 
         /// <summary>
         ///     Method to remove an added action for this event.
         /// </summary>
-        /// <param name="scheduleAction">Specifies the older specified action for removing.</param>
+        /// <param name="schedulerAction">Specifies the older specified action for removing.</param>
+        /// <exception cref="Exception">
+        ///     An exception is thrown if the specified action for removing doesn't exist in the collection
+        ///     of former actions that were added.
+        /// </exception>
+        /// <exception cref="Exception">
+        ///     An exception is thrown if the scheduler has just one action. A scheduler can't work without any action.
+        /// </exception>
+        /// <returns>Access to the main object.</returns>
+        public G9Scheduler RemoveSchedulerAction(Action<G9Scheduler> schedulerAction)
+        {
+            if (_scheduler.SchedulerActions != null && _scheduler.SchedulerActions.Count == 1 &&
+                (SchedulerState == G9ESchedulerState.StartedStateWithoutExecution ||
+                 SchedulerState == G9ESchedulerState.StartedStateOnPreExecution ||
+                 SchedulerState == G9ESchedulerState.StartedStateOnEndExecution))
+                throw new Exception("A scheduler can't work without any scheduler action.");
+            CheckValidation();
+            CollectionRemoveHelper(ref _scheduler.SchedulerActions, schedulerAction, nameof(schedulerAction));
+            return this;
+        }
+
+        /// <summary>
+        ///     Method to add an action for the scheduler that must be called when the scheduler task wants to run.
+        ///     <para />
+        ///     Pay attention that each round of scheduler execution calls this callback (event).
+        /// </summary>
+        /// <param name="preExecutionCallbackAction">
+        ///     Specifies a custom action
+        ///     <para />
+        ///     The first callback parameter provides access to the scheduler.
+        /// </param>
+        /// <returns>Access to the main object.</returns>
+        public G9Scheduler AddPreExecutionCallback(Action<G9Scheduler> preExecutionCallbackAction)
+        {
+            CheckValidation();
+            CollectionAdderHelper(ref _scheduler.PreExecutionCallbacks, preExecutionCallbackAction,
+                nameof(preExecutionCallbackAction));
+            return this;
+        }
+
+        /// <summary>
+        ///     Method to remove an added action for this event.
+        /// </summary>
+        /// <param name="preExecutionCallbackAction">Specifies the older specified action for removing.</param>
         /// <exception cref="Exception">
         ///     An exception is thrown if the specified action for removing doesn't exist in the collection
         ///     of former actions that were added.
         /// </exception>
         /// <returns>Access to the main object.</returns>
-        public G9Scheduler RemoveScheduleAction(Action scheduleAction)
+        public G9Scheduler RemovePreExecutionCallback(Action<G9Scheduler> preExecutionCallbackAction)
         {
             CheckValidation();
-            CollectionRemoveHelper(ref _scheduler.ScheduleAction, scheduleAction, nameof(scheduleAction));
+            CollectionRemoveHelper(ref _scheduler.PreExecutionCallbacks, preExecutionCallbackAction,
+                nameof(preExecutionCallbackAction));
             return this;
         }
 
         /// <summary>
-        ///     Method to add an action for the scheduler that must execute when the scheduler task is finished.
+        ///     Method to add an action for the scheduler that must execute when the scheduler task is ended.
+        ///     <para />
+        ///     Pay attention that each round of scheduler execution calls this callback (event).
         /// </summary>
-        /// <param name="finishCallbackAction">Specifies a custom action</param>
+        /// <param name="endExecutionCallback">
+        ///     Specifies a custom action
+        ///     <para />
+        ///     The first callback parameter provides access to the scheduler.
+        /// </param>
         /// <returns>Access to the main object.</returns>
-        public G9Scheduler AddFinishCallback(Action finishCallbackAction)
+        public G9Scheduler AddEndExecutionCallback(Action<G9Scheduler> endExecutionCallback)
         {
             CheckValidation();
-            CollectionAdderHelper(ref _scheduler.FinishCallBack, finishCallbackAction, nameof(finishCallbackAction));
+            CollectionAdderHelper(ref _scheduler.EndExecutionCallbacks, endExecutionCallback,
+                nameof(endExecutionCallback));
+            return this;
+        }
+
+        /// <summary>
+        ///     Method to remove an added action for this event.
+        /// </summary>
+        /// <param name="endExecutionCallback">Specifies the older specified action for removing.</param>
+        /// <exception cref="Exception">
+        ///     An exception is thrown if the specified action for removing doesn't exist in the collection
+        ///     of former actions that were added.
+        /// </exception>
+        /// <returns>Access to the main object.</returns>
+        public G9Scheduler RemoveEndExecutionCallback(Action<G9Scheduler> endExecutionCallback)
+        {
+            CheckValidation();
+            CollectionRemoveHelper(ref _scheduler.EndExecutionCallbacks, endExecutionCallback,
+                nameof(endExecutionCallback));
+            return this;
+        }
+
+        /// <summary>
+        ///     Method to add an action for the scheduler that must be called when the scheduler task is finished.
+        /// </summary>
+        /// <param name="finishCallbackAction">
+        ///     Specifies a custom action
+        ///     <para />
+        ///     The first callback parameter provides access to the scheduler.
+        ///     <para />
+        ///     The second callback parameter specifies the reason for finishing.
+        ///     <para />
+        ///     The third callback parameter specifies an explanation text as the reason (indeed, this text is defined by the
+        ///     programmer using the method 'Finish()').
+        /// </param>
+        /// <returns>Access to the main object.</returns>
+        public G9Scheduler AddFinishCallback(Action<G9Scheduler, G9EFinishingReason, string> finishCallbackAction)
+        {
+            CheckValidation();
+            CollectionAdderHelper(ref _scheduler.FinishCallbacks, finishCallbackAction, nameof(finishCallbackAction));
             return this;
         }
 
@@ -59,22 +152,28 @@ namespace G9ScheduleManagement
         ///     of former actions that were added.
         /// </exception>
         /// <returns>Access to the main object.</returns>
-        public G9Scheduler RemoveFinishCallback(Action finishCallbackAction)
+        public G9Scheduler RemoveFinishCallback(Action<G9Scheduler, G9EFinishingReason, string> finishCallbackAction)
         {
             CheckValidation();
-            CollectionRemoveHelper(ref _scheduler.FinishCallBack, finishCallbackAction, nameof(finishCallbackAction));
+            CollectionRemoveHelper(ref _scheduler.FinishCallbacks, finishCallbackAction, nameof(finishCallbackAction));
             return this;
         }
 
         /// <summary>
-        ///     Method to add an action for the scheduler that must execute when the scheduler is started.
+        ///     Method to add an action for the scheduler that must be called when the scheduler is started.
+        ///     <para />
+        ///     Pay attention that the starting process happens once (using the 'Start()' method).
         /// </summary>
-        /// <param name="startCallbackAction">Specifies a custom action</param>
+        /// <param name="startCallbackAction">
+        ///     Specifies a custom action
+        ///     <para />
+        ///     The first callback parameter provides access to the scheduler.
+        /// </param>
         /// <returns>Access to the main object.</returns>
-        public G9Scheduler AddStartCallback(Action startCallbackAction)
+        public G9Scheduler AddStartCallback(Action<G9Scheduler> startCallbackAction)
         {
             CheckValidation();
-            CollectionAdderHelper(ref _scheduler.StartCallBack, startCallbackAction, nameof(startCallbackAction));
+            CollectionAdderHelper(ref _scheduler.StartCallbacks, startCallbackAction, nameof(startCallbackAction));
             return this;
         }
 
@@ -87,22 +186,28 @@ namespace G9ScheduleManagement
         ///     of former actions that were added.
         /// </exception>
         /// <returns>Access to the main object.</returns>
-        public G9Scheduler RemoveStartCallback(Action startCallbackAction)
+        public G9Scheduler RemoveStartCallback(Action<G9Scheduler> startCallbackAction)
         {
             CheckValidation();
-            CollectionRemoveHelper(ref _scheduler.StartCallBack, startCallbackAction, nameof(startCallbackAction));
+            CollectionRemoveHelper(ref _scheduler.StartCallbacks, startCallbackAction, nameof(startCallbackAction));
             return this;
         }
 
         /// <summary>
-        ///     Method to add an action for the scheduler that must execute when the scheduler is stopped.
+        ///     Method to add an action for the scheduler that must be called when the scheduler is stopped.
+        ///     <para />
+        ///     Pay attention that the stopping process happens once (using the 'Stop()' method).
         /// </summary>
-        /// <param name="stopCallbackAction">Specifies a custom action</param>
+        /// <param name="stopCallbackAction">
+        ///     Specifies a custom action
+        ///     <para />
+        ///     The first callback parameter provides access to the scheduler.
+        /// </param>
         /// <returns>Access to the main object.</returns>
-        public G9Scheduler AddStopCallback(Action stopCallbackAction)
+        public G9Scheduler AddStopCallback(Action<G9Scheduler> stopCallbackAction)
         {
             CheckValidation();
-            CollectionAdderHelper(ref _scheduler.StopCallBack, stopCallbackAction, nameof(stopCallbackAction));
+            CollectionAdderHelper(ref _scheduler.StopCallbacks, stopCallbackAction, nameof(stopCallbackAction));
             return this;
         }
 
@@ -115,50 +220,29 @@ namespace G9ScheduleManagement
         ///     of former actions that were added.
         /// </exception>
         /// <returns>Access to the main object.</returns>
-        public G9Scheduler RemoveStopCallback(Action stopCallbackAction)
+        public G9Scheduler RemoveStopCallback(Action<G9Scheduler> stopCallbackAction)
         {
             CheckValidation();
-            CollectionRemoveHelper(ref _scheduler.StopCallBack, stopCallbackAction, nameof(stopCallbackAction));
+            CollectionRemoveHelper(ref _scheduler.StopCallbacks, stopCallbackAction, nameof(stopCallbackAction));
             return this;
         }
 
         /// <summary>
-        ///     Method to add an action for the scheduler that must execute when the scheduler is resumed.
+        ///     Method to add an action for the scheduler that must be called when the scheduler process faces an error
+        ///     (exception).
         /// </summary>
-        /// <param name="resumeCallbackAction">Specifies a custom action</param>
+        /// <param name="errorCallbackAction">
+        ///     Specifies a custom action
+        ///     <para />
+        ///     The first callback parameter provides access to the scheduler.
+        ///     <para />
+        ///     The second callback parameter specifies an exception consisting of error information.
+        /// </param>
         /// <returns>Access to the main object.</returns>
-        public G9Scheduler AddResumeCallback(Action resumeCallbackAction)
+        public G9Scheduler AddErrorCallback(Action<G9Scheduler, Exception> errorCallbackAction)
         {
             CheckValidation();
-            CollectionAdderHelper(ref _scheduler.ResumeCallBack, resumeCallbackAction, nameof(resumeCallbackAction));
-            return this;
-        }
-
-        /// <summary>
-        ///     Method to remove an added action for this event.
-        /// </summary>
-        /// <param name="resumeCallbackAction">Specifies the older specified action for removing.</param>
-        /// <exception cref="Exception">
-        ///     An exception is thrown if the specified action for removing doesn't exist in the collection
-        ///     of former actions that were added.
-        /// </exception>
-        /// <returns>Access to the main object.</returns>
-        public G9Scheduler RemoveResumeCallback(Action resumeCallbackAction)
-        {
-            CheckValidation();
-            CollectionRemoveHelper(ref _scheduler.ResumeCallBack, resumeCallbackAction, nameof(resumeCallbackAction));
-            return this;
-        }
-
-        /// <summary>
-        ///     Method to add an action for the scheduler that must execute when the scheduler process faces an error (exception).
-        /// </summary>
-        /// <param name="errorCallbackAction">Specifies a custom action</param>
-        /// <returns>Access to the main object.</returns>
-        public G9Scheduler AddErrorCallback(Action<Exception> errorCallbackAction)
-        {
-            CheckValidation();
-            CollectionAdderHelper(ref _scheduler.ErrorCallBack, errorCallbackAction, nameof(errorCallbackAction));
+            CollectionAdderHelper(ref _scheduler.ErrorCallbacks, errorCallbackAction, nameof(errorCallbackAction));
             return this;
         }
 
@@ -171,22 +255,28 @@ namespace G9ScheduleManagement
         ///     of former actions that were added.
         /// </exception>
         /// <returns>Access to the main object.</returns>
-        public G9Scheduler RemoveErrorCallback(Action<Exception> errorCallbackAction)
+        public G9Scheduler RemoveErrorCallback(Action<G9Scheduler, Exception> errorCallbackAction)
         {
             CheckValidation();
-            CollectionRemoveHelper(ref _scheduler.ErrorCallBack, errorCallbackAction, nameof(errorCallbackAction));
+            CollectionRemoveHelper(ref _scheduler.ErrorCallbacks, errorCallbackAction, nameof(errorCallbackAction));
             return this;
         }
 
         /// <summary>
-        ///     Method to add an action for the scheduler that must execute when the scheduler is removed (dispose).
+        ///     Method to add an action for the scheduler that must be called when the scheduler is removed (dispose).
         /// </summary>
-        /// <param name="disposeCallbackAction">Specifies a custom action</param>
+        /// <param name="disposeCallbackAction">
+        ///     Specifies a custom action
+        ///     <para />
+        ///     The first callback parameter provides access to the scheduler.
+        ///     <para />
+        ///     The second callback parameter specifies the reason for disposing of the scheduler.
+        /// </param>
         /// <returns>Access to the main object.</returns>
-        public G9Scheduler AddDisposeCallback(Action<G9EDisposeReason> disposeCallbackAction)
+        public G9Scheduler AddDisposeCallback(Action<G9Scheduler, G9EDisposeReason> disposeCallbackAction)
         {
             CheckValidation();
-            CollectionAdderHelper(ref _scheduler.DisposeCallBack, disposeCallbackAction,
+            CollectionAdderHelper(ref _scheduler.DisposeCallbacks, disposeCallbackAction,
                 nameof(disposeCallbackAction));
             return this;
         }
@@ -200,20 +290,26 @@ namespace G9ScheduleManagement
         ///     of former actions that were added.
         /// </exception>
         /// <returns>Access to the main object.</returns>
-        public G9Scheduler RemoveDisposeCallback(Action<G9EDisposeReason> disposeCallbackAction)
+        public G9Scheduler RemoveDisposeCallback(Action<G9Scheduler, G9EDisposeReason> disposeCallbackAction)
         {
             CheckValidation();
-            CollectionRemoveHelper(ref _scheduler.DisposeCallBack, disposeCallbackAction,
+            CollectionRemoveHelper(ref _scheduler.DisposeCallbacks, disposeCallbackAction,
                 nameof(disposeCallbackAction));
             return this;
         }
 
         /// <summary>
-        ///     Method to add an function for specifying a custom condition for scheduler execution.
+        ///     Method to add a function for specifying a custom condition for scheduler execution.
         /// </summary>
-        /// <param name="customConditionFunc">Specifies a custom function</param>
+        /// <param name="customConditionFunc">
+        ///     Specifies a custom function
+        ///     <para />
+        ///     The first function parameter provides access to the scheduler.
+        ///     <para />
+        ///     The second function parameter specifies the result of the function that must be Boolean.
+        /// </param>
         /// <returns>Access to the main object.</returns>
-        public G9Scheduler AddCondition(Func<bool> customConditionFunc)
+        public G9Scheduler AddCondition(Func<G9Scheduler, bool> customConditionFunc)
         {
             CheckValidation();
             CollectionAdderHelper(ref _scheduler.ConditionFunctions, customConditionFunc, nameof(customConditionFunc));
@@ -229,7 +325,7 @@ namespace G9ScheduleManagement
         ///     of former functions that were added.
         /// </exception>
         /// <returns>Access to the main object.</returns>
-        public G9Scheduler RemoveCondition(Func<bool> customConditionFunc)
+        public G9Scheduler RemoveCondition(Func<G9Scheduler, bool> customConditionFunc)
         {
             CheckValidation();
             CollectionRemoveHelper(ref _scheduler.ConditionFunctions, customConditionFunc, nameof(customConditionFunc));
@@ -237,10 +333,10 @@ namespace G9ScheduleManagement
         }
 
         /// <summary>
-        ///     Method to set (or update) a custom date time for starting as a condition.
+        ///     Method to set (or update) a Custom Date time for starting as a condition.
         /// </summary>
         /// <param name="startDateTime">
-        ///     Specifies a custom date time for starting as a condition.
+        ///     Specifies a Custom Date time for starting as a condition.
         ///     <para />
         ///     If it is set to "DateTime.MinValue", its meaning is that it doesn't have a start date time (indeed, it doesn't have
         ///     a condition).
@@ -254,10 +350,10 @@ namespace G9ScheduleManagement
         }
 
         /// <summary>
-        ///     Method to set (or update)a custom date time for ending as a condition.
+        ///     Method to set (or update) a Custom Date time for ending as a condition.
         /// </summary>
         /// <param name="finishDateTime">
-        ///     Specifies a custom date time for ending as a condition.
+        ///     Specifies a Custom Date time for ending as a condition.
         ///     <para />
         ///     If it is set to "DateTime.MinValue", its meaning is that it doesn't have a start date time (indeed, it doesn't have
         ///     a condition).
@@ -271,14 +367,14 @@ namespace G9ScheduleManagement
         }
 
         /// <summary>
-        ///     Method to set (or update)a custom time for starting as a condition.
+        ///     Method to set (or update) a custom time for starting as a condition.
         ///     <para />
-        ///     The specified time is considered per each day independently.
+        ///     The specified time is considered for each day independently.
         /// </summary>
         /// <param name="startTime">
         ///     Specifies a custom time for starting as a condition.
         ///     <para />
-        ///     The specified time is considered per each day independently.
+        ///     The specified time is considered for each day independently.
         ///     <para />
         ///     If it is set to "TimeSpan.Zero", its meaning is that it doesn't have a specified time (indeed, it doesn't have a
         ///     condition).
@@ -292,9 +388,9 @@ namespace G9ScheduleManagement
         }
 
         /// <summary>
-        ///     Method to set (or update)a custom time for ending as a condition.
+        ///     Method to set (or update) a custom time for ending as a condition.
         ///     <para />
-        ///     The specified time is considered per each day independently.
+        ///     The specified time is considered for each day independently.
         ///     <para />
         ///     If it is set to "TimeSpan.Zero", its meaning is that it doesn't have a specified time (indeed, it doesn't have a
         ///     condition).
@@ -302,7 +398,7 @@ namespace G9ScheduleManagement
         /// <param name="endTime">
         ///     Specifies a custom time for ending as a condition.
         ///     <para />
-        ///     The specified time is considered per each day independently.
+        ///     The specified time is considered for each day independently.
         ///     <para />
         ///     If it is set to "TimeSpan.Zero", its meaning is that it doesn't have a specified time (indeed, it doesn't have a
         ///     condition).
@@ -316,11 +412,11 @@ namespace G9ScheduleManagement
         }
 
         /// <summary>
-        ///     Method to set (or update)a custom period duration between each execution.
+        ///     Method to set (or update) a duration period between each execution.
         /// </summary>
         /// <param name="customPeriodDuration">Specifies a custom period duration between each execution.</param>
         /// <returns>Access to the main object.</returns>
-        public G9Scheduler SetPeriodDurationBetweenExecutions(TimeSpan customPeriodDuration)
+        public G9Scheduler SetDurationPeriodBetweenExecutions(TimeSpan customPeriodDuration)
         {
             CheckValidation();
             _scheduler.CustomPeriodDuration = customPeriodDuration;
@@ -328,14 +424,46 @@ namespace G9ScheduleManagement
         }
 
         /// <summary>
-        ///     Method to set (or update)a custom count of repetitions for total executions.
+        ///     Method to set (or update) the count of repetitions for executions.
         /// </summary>
-        /// <param name="customCountOfRepetitions">Specifies a custom count of repetitions for total executions.</param>
+        /// <param name="customCountOfRepetitions">
+        ///     Specifies a custom count of repetitions for total executions.
+        ///     <para />
+        ///     If it's set to 0, its meaning is that it doesn't have a limitation for repetition (indeed, it's infinite).
+        /// </param>
+        /// <param name="repetitionCondition">
+        ///     The second parameter specifies whether the repetition condition must be checked daily.
+        ///     <para />
+        ///     The repetition condition can finish the scheduler when the repetition type isn't
+        ///     <see cref="G9ERepetitionConditionType.PerDay" />.
+        /// </param>
         /// <returns>Access to the main object.</returns>
-        public G9Scheduler SetCountOfRepetitions(int customCountOfRepetitions)
+        public G9Scheduler SetCountOfRepetitions(int customCountOfRepetitions,
+            G9ERepetitionConditionType repetitionCondition)
         {
             CheckValidation();
             _scheduler.CountOfRepetitions = customCountOfRepetitions;
+            _scheduler.CountOfRepetitionsDateTime = DateTime.Now;
+            _scheduler.RepetitionConditionType = repetitionCondition;
+            return this;
+        }
+
+        /// <summary>
+        ///     Method to specify the mode of the queue for the scheduler.
+        /// </summary>
+        /// <param name="isSchedulerQueueEnable">
+        ///     Specifies whether the scheduler queue is enabled or not.
+        ///     <para />
+        ///     If it's set as "true," it means that each new scheduler execution must wait for the older one to finish.
+        ///     <para />
+        ///     If it's set as "false," its meaning is each new scheduler execution is run without considering the older one.
+        ///     <para />
+        ///     By default, it's set as "true."
+        /// </param>
+        /// <returns></returns>
+        public G9Scheduler SetQueueMode(bool isSchedulerQueueEnable)
+        {
+            _scheduler.IsSchedulerQueueEnable = isSchedulerQueueEnable;
             return this;
         }
 
@@ -344,29 +472,20 @@ namespace G9ScheduleManagement
         /// </summary>
         /// <returns>Access to the main object.</returns>
         /// <exception cref="Exception">An exception is thrown If the scheduler doesn't have any added schedule action.</exception>
-        public G9Scheduler StartOrResume()
+        public G9Scheduler Start()
         {
-            if (_scheduler.ScheduleAction == null || !_scheduler.ScheduleAction.Any())
+            if (_scheduler.SchedulerActions == null || !_scheduler.SchedulerActions.Any())
                 throw new Exception(
-                    $"The scheduler for starting needs to have at least one added schedule action. For adding, you can use the method '{nameof(AddScheduleAction)}.'");
+                    $"The scheduler for starting needs to have at least one added schedule action. For adding, you can use the method '{nameof(AddSchedulerAction)}.'");
             CheckValidation();
-            if (_scheduler.SchedulerState != G9ESchedulerState.Paused &&
-                _scheduler.SchedulerState != G9ESchedulerState.Initialized)
+            if (_scheduler.SchedulerState != G9ESchedulerState.PausedState &&
+                _scheduler.SchedulerState != G9ESchedulerState.InitializedState)
                 throw new Exception("The scheduler had already been started, and now it can't start again.");
-            if (SchedulerState == G9ESchedulerState.Initialized)
-            {
-                SchedulerState = G9ESchedulerState.StartedWithoutExecution;
-                if (_scheduler.StartCallBack != null)
-                    foreach (var action in _scheduler.StartCallBack)
-                        action?.Invoke();
-            }
-            else
-            {
-                SchedulerState = G9ESchedulerState.ResumedWithoutExecution;
-                if (_scheduler.ResumeCallBack != null)
-                    foreach (var action in _scheduler.ResumeCallBack)
-                        action?.Invoke();
-            }
+
+            SchedulerState = G9ESchedulerState.StartedStateWithoutExecution;
+            if (_scheduler.StartCallbacks != null)
+                foreach (var action in _scheduler.StartCallbacks)
+                    action?.Invoke(this);
 
             return this;
         }
@@ -378,14 +497,32 @@ namespace G9ScheduleManagement
         public G9Scheduler Stop()
         {
             CheckValidation();
-            if (_scheduler.SchedulerState == G9ESchedulerState.None ||
-                _scheduler.SchedulerState == G9ESchedulerState.Initialized ||
-                _scheduler.SchedulerState == G9ESchedulerState.Paused)
+            if (_scheduler.SchedulerState == G9ESchedulerState.NoneState ||
+                _scheduler.SchedulerState == G9ESchedulerState.InitializedState ||
+                _scheduler.SchedulerState == G9ESchedulerState.PausedState)
                 throw new Exception("The scheduler had already been stopped, and now it can't stop again.");
-            _scheduler.SchedulerState = G9ESchedulerState.Paused;
-            if (_scheduler.StopCallBack != null)
-                foreach (var action in _scheduler.StopCallBack)
-                    action?.Invoke();
+            _scheduler.SchedulerState = G9ESchedulerState.PausedState;
+            if (_scheduler.StopCallbacks != null)
+                foreach (var action in _scheduler.StopCallbacks)
+                    action?.Invoke(this);
+            return this;
+        }
+
+        /// <summary>
+        ///     Method to end the scheduler process.
+        ///     <para />
+        ///     When a scheduler is finished, it's stopped, the state of that is set on finished, and the finishing callbacks are
+        ///     called.
+        /// </summary>
+        /// <param name="reason">
+        ///     Specifies an explanation text for the finish reason.
+        ///     <para />
+        ///     The specified text passes to the related callback.
+        /// </param>
+        /// <returns>Access to the main object.</returns>
+        public G9Scheduler Finish(string reason)
+        {
+            FinishingHelper(_scheduler, G9EFinishingReason.FinishedByCustomRequest, reason);
             return this;
         }
     }

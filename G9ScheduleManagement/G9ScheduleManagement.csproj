@@ -5,7 +5,7 @@
     <StartupObject />
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-    <Version>3.0.1.2</Version>
+    <Version>3.1.1.2</Version>
     <Authors>Iman Kari</Authors>
     <Company>G9Studio</Company>
     <Description>Schedule Management</Description>
@@ -14,18 +14,24 @@
     <PackageIconUrl></PackageIconUrl>
     <PackageProjectUrl>http://www.G9TM.com</PackageProjectUrl>
     <Product>G9 Schedule Management</Product>
-    <AssemblyVersion>3.0.1.2</AssemblyVersion>
-    <FileVersion>3.0.1.2</FileVersion>
+    <AssemblyVersion>3.1.1.2</AssemblyVersion>
+    <FileVersion>3.1.1.2</FileVersion>
     <PackageIcon>G9-Icon.png</PackageIcon>
     <RepositoryUrl>https://github.com/ImanKari/G9ScheduleManagement</RepositoryUrl>
     <RepositoryType>GitHub</RepositoryType>
     <PackageTags>Schedule Scheduler Management ScheduleManagement</PackageTags>
-    <PackageReleaseNotes>-- Added a condition part for the scheduler
--- Added a custom condition for the time that checks each day independently
--- Added generate the custom event with custom condition
--- Added generate the custom event on value change of an object
--- Added multi-target framework tests
--- Added an Enum for specifying the reason for dispose
+    <PackageReleaseNotes>-- Completed the README.MD
+-- Added new condition for repetition limit (In total, Per day)
+-- Added access to the scheduler on callbacks
+-- Added an explanation text for the finish method.
+-- Added a condition part for the scheduler.
+-- Added a custom condition for the time that checks each day independently.
+-- Added generate the custom event with custom condition.
+-- Added generate the custom event on value change of an object.
+-- Added multi-target framework tests.
+-- Added an Enum for specifying the reason for dispose.
+-- Added a finish method.
+-- Added a reason for finishing.
 -- Rewrote the document comments
 -- Redesigned the structure of project
 -- Completed tests</PackageReleaseNotes>
@@ -76,7 +82,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Enum\" />
     <Folder Include="DataType\" />
   </ItemGroup>
 
