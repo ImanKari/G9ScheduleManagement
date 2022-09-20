@@ -257,54 +257,53 @@ namespace G9ScheduleNUnitTest
         [Order(7)]
         public void TestExceptions()
         {
-            using (var scheduler = new G9Scheduler())
+            var scheduler = new G9Scheduler();
+
+            // Checks for starting without the scheduled action
+            try
             {
-                // Checks for starting without the scheduled action
-                try
-                {
-                    scheduler.Start();
-                    Assert.Fail();
-                }
-                catch (Exception ex)
-                {
-                    Assert.True(ex.Message ==
-                                $"The scheduler for starting needs to have at least one added schedule action. For adding, you can use the method '{nameof(G9Scheduler.AddSchedulerAction)}.'");
-                }
+                scheduler.Start();
+                Assert.Fail();
+            }
+            catch (Exception ex)
+            {
+                Assert.True(ex.Message ==
+                            $"The scheduler for starting needs to have at least one added schedule action. For adding, you can use the method '{nameof(G9Scheduler.AddSchedulerAction)}.'");
+            }
 
-                // Checks for adding a null item for the scheduled action
-                try
-                {
-                    scheduler.AddSchedulerAction(null);
-                    Assert.Fail();
-                }
-                catch (Exception ex)
-                {
-                    Assert.True(ex.Message.StartsWith(
-                        "The specified item for adding cannot be null (here is 'schedulerAction')"));
-                }
+            // Checks for adding a null item for the scheduled action
+            try
+            {
+                scheduler.AddSchedulerAction(null);
+                Assert.Fail();
+            }
+            catch (Exception ex)
+            {
+                Assert.True(ex.Message.StartsWith(
+                    "The specified item for adding cannot be null (here is 'schedulerAction')"));
+            }
 
-                // Checks for removing an item (here is a condition) that does not exist (not added for this scheduler)
-                try
-                {
-                    scheduler.RemoveCondition(s => true);
-                    Assert.Fail();
-                }
-                catch (Exception ex)
-                {
-                    Assert.True(ex.Message.StartsWith(
-                        "No items have been added to this scheduler, so you cannot remove a specified action (here is 'customConditionFunc') from it."));
-                }
+            // Checks for removing an item (here is a condition) that does not exist (not added for this scheduler)
+            try
+            {
+                scheduler.RemoveCondition(s => true);
+                Assert.Fail();
+            }
+            catch (Exception ex)
+            {
+                Assert.True(ex.Message.StartsWith(
+                    "No items have been added to this scheduler, so you cannot remove a specified action (here is 'customConditionFunc') from it."));
+            }
 
-                // Checks for stopping a scheduler that isn't started.
-                try
-                {
-                    scheduler.Stop();
-                    Assert.Fail();
-                }
-                catch (Exception ex)
-                {
-                    Assert.True(ex.Message == "The scheduler had already been stopped, and now it can't stop again.");
-                }
+            // Checks for stopping a scheduler that isn't started.
+            try
+            {
+                scheduler.Stop();
+                Assert.Fail();
+            }
+            catch (Exception ex)
+            {
+                Assert.True(ex.Message == "The scheduler had already been stopped, and now it can't stop again.");
             }
         }
 
@@ -320,7 +319,8 @@ namespace G9ScheduleNUnitTest
             Action<G9Scheduler, G9EFinishingReason, string> finishCallback = (s, reason, text) =>
             {
                 TestContext.WriteLine($"finishCallback: {reason} | text: {text}");
-                Assert.True(reason == G9EFinishingReason.FinishedByCustomRequest && text == "Custom request for finishing!");
+                Assert.True(reason == G9EFinishingReason.FinishedByCustomRequest &&
+                            text == "Custom request for finishing!");
             };
             Action<G9Scheduler, Exception> errorCallback = (s, ex) =>
             {

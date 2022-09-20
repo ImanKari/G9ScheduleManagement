@@ -5,7 +5,7 @@ namespace G9ScheduleManagement
     /// <summary>
     ///     A pretty small library for working with schedulers
     /// </summary>
-    public partial class G9Scheduler : IDisposable
+    public partial class G9Scheduler
     {
         /// <summary>
         ///     Method to generate a custom event with a custom condition.

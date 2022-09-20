@@ -55,7 +55,9 @@ namespace G9ScheduleManagement
             Initialize(false);
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        ///     Dispose
+        /// </summary>
         public void Dispose()
         {
             lock (LockCollectionForScheduleTask)
@@ -363,7 +365,8 @@ namespace G9ScheduleManagement
         /// <summary>
         ///     Helper method to handle scheduler items that were finished.
         /// </summary>
-        private static void FinishingHelper(G9DtScheduler scheduledItem, G9EFinishingReason finishingReason, string information)
+        private static void FinishingHelper(G9DtScheduler scheduledItem, G9EFinishingReason finishingReason,
+            string information)
         {
             try
             {
