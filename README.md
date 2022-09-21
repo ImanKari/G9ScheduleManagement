@@ -8,7 +8,7 @@
 # G9ScheduleManagement
 ## A lightweight .NET library has been developed for interacting with schedulers. Many valuable tools for developing a custom scheduler are available within this package that allows you to create various types of schedulers with a vast scale of desired Callbacks, Conditions, and Tools.
 
-# Overview
+# ❇️Guide
 Before anything, we would be familiar with almost all the tools in this package, along with a small example. Then, some functional examples, along with implementation, will be shown.\
 Points:
 - All methods in this library return the created instance of their object, so you can use another method along with a dot after using the first method.
@@ -274,3 +274,6 @@ sample.Age = 99;
 # Important Points
 - ### The created object of the scheduler must store in a lifetime variable (like a static variable or a variable in the 'program.cs' file). If the created object is defined in a limited scope and the process of that is finished. The core disposes of the scheduler automatically.
 - ### In web-based projects, even if storing the scheduler object performs in a static variable, the core still disposes of the scheduler because static variables in the web-based project have a limited lifetime. So, the storing process in this type of project must perform in some scopes that have a lifetime process (In the new .NET web app can perform in the 'program.cs' file, and in the older version can define in 'Global.asax').
+
+# END
+## Be the best you can be; the future depends on it. 🚀	

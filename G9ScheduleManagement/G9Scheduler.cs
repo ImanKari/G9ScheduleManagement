@@ -33,14 +33,10 @@ namespace G9ScheduleManagement
         {
             get
             {
-#if NET35
                 lock (LockCollectionForScheduleTask)
                 {
                     return SchedulersCollection.Count;
                 }
-#else
-                return SchedulersCollection.Count;
-#endif
             }
         }
 
