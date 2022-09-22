@@ -209,6 +209,7 @@ namespace G9ScheduleNUnitTest
         [Order(5)]
         public void TestMultiThread()
         {
+#if DEBUG
             var counter = 0;
             G9Assembly.PerformanceTools.MultiThreadShockTest(i =>
                 {
@@ -223,6 +224,7 @@ namespace G9ScheduleNUnitTest
             );
 
             Thread.Sleep(16399);
+#endif
         }
 
         [Test]
