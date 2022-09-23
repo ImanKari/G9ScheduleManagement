@@ -5,17 +5,17 @@
     <StartupObject />
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-    <Version>3.1.2.0</Version>
+    <Version>3.1.2.1</Version>
     <Authors>Iman Kari</Authors>
     <Company>G9Studio</Company>
-    <Description>Schedule Management</Description>
+    <Description>A lightweight .NET library has been developed for interacting with schedulers. Many valuable tools for developing a custom scheduler are available within this package that allows you to create various types of schedulers with a vast scale of desired Callbacks, Conditions, and Tools.</Description>
     <Copyright>G9Studio - 2021</Copyright>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     <PackageIconUrl></PackageIconUrl>
     <PackageProjectUrl>http://www.G9TM.com</PackageProjectUrl>
     <Product>G9 Schedule Management</Product>
-    <AssemblyVersion>3.1.2.0</AssemblyVersion>
-    <FileVersion>3.1.2.0</FileVersion>
+    <AssemblyVersion>3.1.2.1</AssemblyVersion>
+    <FileVersion>3.1.2.1</FileVersion>
     <PackageIcon>G9-Icon.png</PackageIcon>
     <RepositoryUrl>https://github.com/ImanKari/G9ScheduleManagement</RepositoryUrl>
     <RepositoryType>GitHub</RepositoryType>

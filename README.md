@@ -6,7 +6,7 @@
 
 
 # G9ScheduleManagement
-## A lightweight .NET library has been developed for interacting with schedulers. Many valuable tools for developing a custom scheduler are available within this package that allows you to create various types of schedulers with a vast scale of desired Callbacks, Conditions, and Tools.
+## A lightweight .NET library has been developed for interacting with schedulers. Many valuable tools for developing a custom scheduler are available within this package that allows you to [create various types of schedulers](#functional-examples) with a vast scale of desired Callbacks, Conditions, and Tools.
 
 # ❇️Guide
 Before anything, we would be familiar with almost all the tools in this package, along with a small example. Then, some functional examples, along with implementation, will be shown.\
