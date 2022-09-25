@@ -52,6 +52,11 @@
         /// <summary>
         ///     Specifies that the scheduler task was finished.
         /// </summary>
-        FinishedState
+        FinishedState,
+
+        /// <summary>
+        ///     Specifies that scheduler execution rejected according to set conditions.
+        /// </summary>
+        ConditionalRejectExecution
     }
 }

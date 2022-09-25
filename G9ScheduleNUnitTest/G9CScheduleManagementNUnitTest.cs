@@ -11,12 +11,12 @@ namespace G9ScheduleNUnitTest
 {
     public class G9CScheduleManagementNUnitTest
     {
-//#if NET35
-//        private readonly bool _isDotNet35 = true;
-//#else
-//        private readonly bool _isDotNet35 = false;
-//#endif
-
+        //#if NET35
+        //        private readonly bool _isDotNet35 = true;
+        //#else
+        //        private readonly bool _isDotNet35 = false;
+        //#endif
+        
         [SetUp]
         public void Setup()
         {
@@ -29,7 +29,7 @@ namespace G9ScheduleNUnitTest
             var counter = 0;
             var schedule = new G9Scheduler()
                 .AddSchedulerAction(s => { counter++; })
-                .SetDurationPeriodBetweenExecutions(TimeSpan.FromSeconds(1))
+                .SetDurationPeriodBetweenExecutions(G9DtGap.OneSec)
                 .AddErrorCallback((s, exception) => { Assert.Fail($"Schedule error!\n{exception.StackTrace}"); })
                 .Start();
 
@@ -95,7 +95,7 @@ namespace G9ScheduleNUnitTest
                 // Pre && End execution
                 .AddPreExecutionCallback(s => onPreExecution = true)
                 .AddEndExecutionCallback(s => onEndExecution = true)
-                .SetDurationPeriodBetweenExecutions(TimeSpan.FromSeconds(1))
+                .SetDurationPeriodBetweenExecutions(G9DtGap.OneSec)
                 // The first execution must be done after 3 seconds
                 .SetStartDateTime(specifiedStartDateTime)
                 .SetEndDateTime(specifiedEndDateTime);
@@ -111,7 +111,8 @@ namespace G9ScheduleNUnitTest
             // After first execution
 
             Assert.True(schedule.SchedulerState == G9ESchedulerState.StartedStateOnPreExecution ||
-                        schedule.SchedulerState == G9ESchedulerState.StartedStateOnEndExecution);
+                        schedule.SchedulerState == G9ESchedulerState.StartedStateOnEndExecution ||
+                        schedule.SchedulerState == G9ESchedulerState.ConditionalRejectExecution);
 
             // Testing the process of stop callback
             schedule.Stop();
@@ -121,7 +122,8 @@ namespace G9ScheduleNUnitTest
             schedule.Start();
             Assert.True(schedule.SchedulerState == G9ESchedulerState.StartedStateWithoutExecution ||
                         schedule.SchedulerState == G9ESchedulerState.StartedStateOnPreExecution ||
-                        schedule.SchedulerState == G9ESchedulerState.StartedStateOnEndExecution);
+                        schedule.SchedulerState == G9ESchedulerState.StartedStateOnEndExecution ||
+                        schedule.SchedulerState == G9ESchedulerState.ConditionalRejectExecution);
 
             // Wait for finishing
             while (schedule.SchedulerState != G9ESchedulerState.FinishedState) Thread.Sleep(39);
@@ -207,28 +209,6 @@ namespace G9ScheduleNUnitTest
 
         [Test]
         [Order(5)]
-        public void TestMultiThread()
-        {
-#if DEBUG
-            var counter = 0;
-            G9Assembly.PerformanceTools.MultiThreadShockTest(i =>
-                {
-                    counter++;
-                    TestContext.WriteLine($"Number: {counter} | DateTime: {DateTime.Now:O}");
-                    TestBasicScheduler();
-                    TestAdvancedScheduler();
-                    TestSchedulerWithCustomCondition();
-                    TestSchedulerAsEvents();
-                },
-                9
-            );
-
-            Thread.Sleep(16399);
-#endif
-        }
-
-        [Test]
-        [Order(6)]
         public void TestTimeCondition()
         {
             var currentDateTime = DateTime.Now;
@@ -256,7 +236,7 @@ namespace G9ScheduleNUnitTest
         }
 
         [Test]
-        [Order(7)]
+        [Order(6)]
         public void TestExceptions()
         {
             var scheduler = new G9Scheduler();
@@ -310,7 +290,7 @@ namespace G9ScheduleNUnitTest
         }
 
         [Test]
-        [Order(8)]
+        [Order(7)]
         public void TestAddingAndRemovingThings()
         {
             // Set callbacks and function
@@ -347,10 +327,10 @@ namespace G9ScheduleNUnitTest
                 .AddDisposeCallback(disposeCallback)
                 .SetStartDateTime(DateTime.Now)
                 .SetEndDateTime(DateTime.Now.AddMonths(1))
-                .SetStartTime(new G9DtTime(6, 0, 0))
-                .SetEndTime(new G9DtTime(16, 0, 0))
+                .SetStartTime(G9DtTime.FromHours(6))
+                .SetEndTime(G9DtTime.FromHours(16))
                 .SetCountOfRepetitions(99, G9ERepetitionConditionType.PerDay)
-                .SetDurationPeriodBetweenExecutions(TimeSpan.FromSeconds(1));
+                .SetDurationPeriodBetweenExecutions(G9DtGap.OneSec);
 
             // Starting
             scheduler.Start();
@@ -370,10 +350,10 @@ namespace G9ScheduleNUnitTest
             scheduler
                 .SetStartDateTime(DateTime.Now.AddSeconds(3))
                 .SetEndDateTime(DateTime.Now.AddMonths(2))
-                .SetStartTime(new G9DtTime(8, 0, 0))
-                .SetEndTime(new G9DtTime(12, 0, 0))
+                .SetStartTime(G9DtTime.FromHours(8))
+                .SetEndTime(G9DtTime.FromHours(12))
                 .SetCountOfRepetitions(999, G9ERepetitionConditionType.PerDay)
-                .SetDurationPeriodBetweenExecutions(TimeSpan.FromMilliseconds(500));
+                .SetDurationPeriodBetweenExecutions(G9DtGap.Init(0, 0, 0, 0, 500));
 
             Thread.Sleep(339);
 
@@ -451,6 +431,46 @@ namespace G9ScheduleNUnitTest
             Assert.True(counter > 1);
             TestContext.WriteLine($"Counter (Without Queue): {counter}");
             scheduler.Dispose();
+        }
+
+        [Test]
+        [Order(9)]
+        public void TestSchedulerTries()
+        {
+
+            try
+            {
+                new G9Scheduler()
+                    .SetCountOfTries(10);
+                Assert.Fail();
+            }
+            catch (Exception e)
+            {
+                Assert.True(e.Message == $"The count of tries can't be set before or without specifying the count of repetitions (With method '{nameof(G9Scheduler.SetCountOfRepetitions)}'). Because trying without repetition limit doesn't work.");
+            }
+
+            var counter = 0;
+            bool finish = false;
+            bool finishingCallBack = false;
+            var scheduler = new G9Scheduler()
+                .AddSchedulerAction(s =>
+                {
+                    TestContext.WriteLine(DateTime.Now.ToString("O"));
+                    counter++;
+                    if (counter < 3)
+                        throw new Exception("Fake Exception!");
+                    finish = true;
+                })
+                .AddFinishCallback((s, r, t) =>
+                {
+                    finishingCallBack = true;
+                })
+                .SetCountOfRepetitions(1, G9ERepetitionConditionType.InTotal)
+                .SetCountOfTries(2, G9DtGap.FromMilliseconds(500))
+                .Start();
+
+            Thread.Sleep(1009);
+            Assert.True(finish && finishingCallBack);
         }
     }
 }

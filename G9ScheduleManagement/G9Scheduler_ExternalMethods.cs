@@ -376,7 +376,7 @@ namespace G9ScheduleManagement
         ///     <para />
         ///     The specified time is considered for each day independently.
         ///     <para />
-        ///     If it is set to "TimeSpan.Zero", its meaning is that it doesn't have a specified time (indeed, it doesn't have a
+        ///     If it is set to "G9DtTime.Zero", its meaning is that it doesn't have a specified time (indeed, it doesn't have a
         ///     condition).
         /// </param>
         /// <returns>Access to the main object.</returns>
@@ -392,7 +392,7 @@ namespace G9ScheduleManagement
         ///     <para />
         ///     The specified time is considered for each day independently.
         ///     <para />
-        ///     If it is set to "TimeSpan.Zero", its meaning is that it doesn't have a specified time (indeed, it doesn't have a
+        ///     If it is set to "G9DtTime.Zero", its meaning is that it doesn't have a specified time (indeed, it doesn't have a
         ///     condition).
         /// </summary>
         /// <param name="endTime">
@@ -400,7 +400,7 @@ namespace G9ScheduleManagement
         ///     <para />
         ///     The specified time is considered for each day independently.
         ///     <para />
-        ///     If it is set to "TimeSpan.Zero", its meaning is that it doesn't have a specified time (indeed, it doesn't have a
+        ///     If it is set to "G9DtTime.Zero", its meaning is that it doesn't have a specified time (indeed, it doesn't have a
         ///     condition).
         /// </param>
         /// <returns>Access to the main object.</returns>
@@ -416,10 +416,10 @@ namespace G9ScheduleManagement
         /// </summary>
         /// <param name="customPeriodDuration">Specifies a custom period duration between each execution.</param>
         /// <returns>Access to the main object.</returns>
-        public G9Scheduler SetDurationPeriodBetweenExecutions(TimeSpan customPeriodDuration)
+        public G9Scheduler SetDurationPeriodBetweenExecutions(G9DtGap customPeriodDuration)
         {
             CheckValidation();
-            _scheduler.CustomPeriodDuration = customPeriodDuration;
+            _scheduler.CustomPeriodDuration = customPeriodDuration.ConvertToTimeSpan();
             return this;
         }
 
@@ -438,13 +438,41 @@ namespace G9ScheduleManagement
         ///     <see cref="G9ERepetitionConditionType.PerDay" />.
         /// </param>
         /// <returns>Access to the main object.</returns>
-        public G9Scheduler SetCountOfRepetitions(int customCountOfRepetitions,
+        public G9Scheduler SetCountOfRepetitions(uint customCountOfRepetitions,
             G9ERepetitionConditionType repetitionCondition)
         {
             CheckValidation();
             _scheduler.CountOfRepetitions = customCountOfRepetitions;
-            _scheduler.CountOfRepetitionsDateTime = DateTime.Now;
+            _scheduler.RepetitionsDateTime = DateTime.Now;
             _scheduler.RepetitionConditionType = repetitionCondition;
+            return this;
+        }
+
+        /// <summary>
+        ///     Method to set (or update) the count of tries for unsuccessful execution.
+        /// </summary>
+        /// <param name="customCountOfTries">
+        ///     Specifies a custom count of tries.
+        ///     <para />
+        ///     If it's set to 0, its meaning is that it doesn't have any tries (for execution again) when an unsuccessful
+        ///     execution happens.
+        /// </param>
+        /// <param name="gapBetweenEachTry">Specifies how much gap there must be between each try.</param>
+        /// <returns>Access to the main object.</returns>
+        /// <exception cref="Exception">
+        ///     The count of tries can't be set before or without specifying the count of repetitions.
+        ///     Because trying without repetition limit doesn't work.
+        /// </exception>
+        public G9Scheduler SetCountOfTries(uint customCountOfTries, G9DtGap gapBetweenEachTry = default)
+        {
+            CheckValidation();
+
+            if (_scheduler.CountOfRepetitions == 0)
+                throw new Exception(
+                    $"The count of tries can't be set before or without specifying the count of repetitions (With method '{nameof(SetCountOfRepetitions)}'). Because trying without repetition limit doesn't work.");
+
+            _scheduler.CountOfTries = customCountOfTries;
+            _scheduler.GapBetweenEachTry = gapBetweenEachTry.ConvertToTimeSpan();
             return this;
         }
 

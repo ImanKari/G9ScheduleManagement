@@ -36,7 +36,12 @@ namespace G9ScheduleManagement.G9ScheduleItem
         /// <summary>
         ///     Helper field for counting the number of repetitions.
         /// </summary>
-        public int CountOfRepetitionsCounter = 0;
+        public uint CountOfRepetitionsCounter = 0;
+
+        /// <summary>
+        ///     Helper field for counting the number of tries.
+        /// </summary>
+        public uint CountOfTriesCounter = 0;
 
         /// <summary>
         ///     A collection for storing callbacks related to disposing time.
@@ -235,14 +240,14 @@ namespace G9ScheduleManagement.G9ScheduleItem
         /// <summary>
         ///     Private field
         /// </summary>
-        private int _countOfRepetitions;
+        private uint _countOfRepetitions;
 
         /// <summary>
         ///     Specifies the number of repetitions for scheduled action.
         ///     <para />
         ///     If it's set to 0, its meaning is that it doesn't have a limitation for repetition (indeed, it's infinite).
         /// </summary>
-        public int CountOfRepetitions
+        public uint CountOfRepetitions
         {
             set
             {
@@ -258,9 +263,40 @@ namespace G9ScheduleManagement.G9ScheduleItem
         public bool HasCustomCountOfRepetitions { private set; get; }
 
         /// <summary>
+        ///     Private field
+        /// </summary>
+        private uint _countOfTries;
+
+        /// <summary>
+        ///     Specifies the count of tries for unsuccessful execution.
+        ///     <para />
+        ///     If it's set to 0, its meaning is that it doesn't have any tries (for execution again) when an unsuccessful
+        ///     execution happens.
+        /// </summary>
+        public uint CountOfTries
+        {
+            set
+            {
+                HasCustomCountOfTries = value != 0;
+                _countOfTries = value;
+            }
+            get => _countOfTries;
+        }
+
+        /// <summary>
+        ///     Specifies that a custom period duration between each execution is set or not
+        /// </summary>
+        public bool HasCustomCountOfTries { private set; get; }
+
+        /// <summary>
+        ///     Specifies how much gap there must be between each try.
+        /// </summary>
+        public TimeSpan GapBetweenEachTry;
+
+        /// <summary>
         ///     A field for storing the date time of setting repetition condition.
         /// </summary>
-        public DateTime CountOfRepetitionsDateTime;
+        public DateTime RepetitionsDateTime;
 
         /// <summary>
         ///     Specifies that the repetition condition must check per day or in total.
