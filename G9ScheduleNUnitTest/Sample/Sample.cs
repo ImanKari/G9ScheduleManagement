@@ -58,12 +58,17 @@ public class Sample
             .SetCountOfRepetitions(99, G9ERepetitionConditionType.PerDay)
 
             // Method to set (or update) a duration period between each execution.
-            .SetDurationPeriodBetweenExecutions(TimeSpan.FromSeconds(1))
+            .SetDurationPeriodBetweenExecutions(G9DtGap.OneSec)
+
+            // Method to set (or update) the count of tries for unsuccessful execution.
+            // First parameter specifies a custom count of tries.
+            // Second parameter specifies how much gap there must be between each try.
+            .SetCountOfTries(3, G9DtGap.FromHours(1))
 
             // Method to set (or update) a custom time for starting/ending as a condition.
             // The specified time is considered for each day independently.
-            .SetStartTime(new G9DtTime(10, 0, 0))
-            .SetEndTime(new G9DtTime(16, 0, 0))
+            .SetStartTime(G9DtTime.Init(10, 0, 0, 0))
+            .SetEndTime(G9DtTime.Init(16, 0, 0, 0))
 
             // Method to specify the mode of the queue for the scheduler.
             // If it's set as "true," it means that each new scheduler execution must wait for the older one to finish.

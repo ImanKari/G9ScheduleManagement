@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Threading;
+using System.Timers;
 using G9ScheduleManagement.Enum;
 using G9ScheduleManagement.G9ScheduleItem;
 #if !NET35 && !NET40
-using System.Threading.Tasks;
 #endif
 
 namespace G9ScheduleManagement
@@ -27,6 +26,34 @@ namespace G9ScheduleManagement
             new Dictionary<uint, G9DtScheduler>();
 
         /// <summary>
+        ///     Cancellation token
+        /// </summary>
+        private static bool _cancelToken;
+
+        /// <summary>
+        ///     It's a flag that at the start of each round is set to 'false,' and at the end of each round of execution is set to
+        ///     'true' again.
+        ///     <para />
+        ///     Indeed, it makes sure that all schedulers in each round are executed.
+        /// </summary>
+        private static bool _isSchedulerRoundIsFinished = true;
+
+        /// <summary>
+        ///     A counter for specifying the unique identity of the scheduler
+        /// </summary>
+        private static uint _scheduleIdentityIndex = 1;
+
+        /// <summary>
+        ///     A static field for storing the main timer of all schedulers.
+        /// </summary>
+        private static Timer _mainTimer;
+
+        /// <summary>
+        ///     Specifies the current scheduler item for the created object.
+        /// </summary>
+        private G9DtScheduler _scheduler;
+
+        /// <summary>
         ///     Specifies the count of current schedulers.
         /// </summary>
         public static int SchedulerItemCount
@@ -41,25 +68,6 @@ namespace G9ScheduleManagement
         }
 
         /// <summary>
-        ///     Cancellation token
-        /// </summary>
-#if NET35 || NET40
-        private static bool _cancelToken = false;
-#else
-        private static readonly CancellationTokenSource CancelToken = new CancellationTokenSource();
-#endif
-
-        /// <summary>
-        ///     Specifies the current scheduler item for the created object.
-        /// </summary>
-        private G9DtScheduler _scheduler;
-
-        /// <summary>
-        ///     A counter for specifying the unique identity of the scheduler
-        /// </summary>
-        private static uint _scheduleIdentityIndex = 1;
-
-        /// <summary>
         ///     Specifies the unique identity of the scheduler.
         /// </summary>
         public uint ScheduleIdentity { private set; get; }
@@ -72,14 +80,5 @@ namespace G9ScheduleManagement
             get => _scheduler.SchedulerState;
             private set => _scheduler.SchedulerState = value;
         }
-
-        /// <summary>
-        ///     A static field for storing the main thread of scheduler management.
-        /// </summary>
-#if NET35 || NET40
-        private static Thread _mainTask;
-#else
-        private static Task _mainTask;
-#endif
     }
 }

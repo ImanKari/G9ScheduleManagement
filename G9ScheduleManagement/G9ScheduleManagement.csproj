@@ -5,7 +5,7 @@
     <StartupObject />
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-    <Version>3.1.2.1</Version>
+    <Version>3.1.3.0</Version>
     <Authors>Iman Kari</Authors>
     <Company>G9Studio</Company>
     <Description>A lightweight .NET library has been developed for interacting with schedulers. Many valuable tools for developing a custom scheduler are available within this package that allows you to create various types of schedulers with a vast scale of desired Callbacks, Conditions, and Tools.</Description>
@@ -14,13 +14,14 @@
     <PackageIconUrl></PackageIconUrl>
     <PackageProjectUrl>http://www.G9TM.com</PackageProjectUrl>
     <Product>G9 Schedule Management</Product>
-    <AssemblyVersion>3.1.2.1</AssemblyVersion>
-    <FileVersion>3.1.2.1</FileVersion>
+    <AssemblyVersion>3.1.3.0</AssemblyVersion>
+    <FileVersion>3.1.3.0</FileVersion>
     <PackageIcon>G9-Icon.png</PackageIcon>
     <RepositoryUrl>https://github.com/ImanKari/G9ScheduleManagement</RepositoryUrl>
     <RepositoryType>GitHub</RepositoryType>
     <PackageTags>Schedule Scheduler Management ScheduleManagement</PackageTags>
-    <PackageReleaseNotes>-- Completed the README.MD
+    <PackageReleaseNotes>-- Added the trying again process on unsuccessful execution
+-- Completed the README.MD
 -- Added new condition for repetition limit (In total, Per day)
 -- Added access to the scheduler on callbacks
 -- Added an explanation text for the finish method.
@@ -79,10 +80,6 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions">
       <Version>6.0.0</Version>
     </PackageReference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="DataType\" />
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">

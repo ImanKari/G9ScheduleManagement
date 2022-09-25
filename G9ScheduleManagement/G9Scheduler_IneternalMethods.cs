@@ -3,6 +3,11 @@ using System.Threading;
 #else
 using System.Threading.Tasks;
 #endif
+#if NET35 || NET40
+using Timer = System.Timers.Timer;
+#else
+using System.Timers;
+#endif
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,6 +21,9 @@ namespace G9ScheduleManagement
     /// </summary>
     public partial class G9Scheduler
     {
+        private DateTime _currentDateTimeForEachRound;
+        private IEnumerable<G9DtScheduler> _mainQueryForSchedulers;
+
         /// <summary>
         ///     Static Constructor - Initialize Requirements
         /// </summary>
@@ -87,87 +95,73 @@ namespace G9ScheduleManagement
                     SchedulersCollection.Add(ScheduleIdentity, _scheduler);
                 }
 
-            if (_mainTask != null) return;
+            if (_mainTimer != null) return;
 
             lock (LockCollectionForScheduleTask)
             {
-                if (_mainTask != null) return;
-#if NET35 || NET40
-                _mainTask = new Thread(ScheduleHandler)
+                if (_mainTimer != null) return;
+
+                _currentDateTimeForEachRound = DateTime.Now;
+                _mainQueryForSchedulers = SchedulersCollection
+                    .Where(s =>
+                        s.Value.SchedulerState != G9ESchedulerState.PausedState &&
+                        s.Value.SchedulerState != G9ESchedulerState.InitializedState &&
+                        s.Value.SchedulerState != G9ESchedulerState.FinishedState &&
+                        s.Value.SchedulerActions != null &&
+                        (!s.Value.HasStartDateTime || s.Value.StartDateTime <= _currentDateTimeForEachRound) &&
+                        (!s.Value.HasStartTime || s.Value.StartTime <= _currentDateTimeForEachRound.TimeOfDay) &&
+                        (!s.Value.HasEndTime || s.Value.EndTime >= _currentDateTimeForEachRound.TimeOfDay) &&
+                        // Check queue
+                        (!s.Value.IsSchedulerQueueEnable ||
+                         s.Value.SchedulerState != G9ESchedulerState.StartedStateOnPreExecution)
+                    )
+                    .Select(s => s.Value);
+
+                _mainTimer = new Timer(1);
+                _mainTimer.Elapsed += (sender, args) =>
                 {
-                    IsBackground = true
+                    if (_cancelToken)
+                    {
+                        _mainTimer.Stop();
+                        _mainTimer.Dispose();
+                    }
+
+                    if (!_isSchedulerRoundIsFinished) return;
+                    _isSchedulerRoundIsFinished = false;
+                    ScheduleHandler();
                 };
-                _mainTask.Start();
-#else
-                _mainTask = Task.Factory.StartNew(async () => await ScheduleHandler(),
-                    CancelToken.Token, TaskCreationOptions.LongRunning, TaskScheduler.Current);
-#endif
+                _mainTimer.Start();
             }
         }
+
 
         /// <summary>
         ///     Helper method to handle scheduled items
         /// </summary>
-#if NET35 || NET40
         private void ScheduleHandler()
-#else
-        private async Task ScheduleHandler()
-#endif
         {
-#if NET35 || NET40
-            while (!_cancelToken)
+            try
             {
-#else
-            var task = Task.Factory.StartNew(async () =>
-            {
-                while (!CancelToken.IsCancellationRequested)
+                _currentDateTimeForEachRound = DateTime.Now;
+
+                G9DtScheduler[] scheduleList;
+                lock (LockCollectionForScheduleTask)
                 {
-#endif
-
-
-                    var currentDateTime = DateTime.Now;
-                    var query = SchedulersCollection
-                        .Where(s =>
-                            s.Value.SchedulerState != G9ESchedulerState.PausedState &&
-                            s.Value.SchedulerState != G9ESchedulerState.InitializedState &&
-                            s.Value.SchedulerState != G9ESchedulerState.FinishedState &&
-                            s.Value.SchedulerActions != null &&
-                            (!s.Value.HasStartDateTime || s.Value.StartDateTime <= currentDateTime) &&
-                            (!s.Value.HasStartTime || s.Value.StartTime <= currentDateTime.TimeOfDay) &&
-                            (!s.Value.HasEndTime || s.Value.EndTime >= currentDateTime.TimeOfDay) &&
-                            // Check queue
-                            (!s.Value.IsSchedulerQueueEnable ||
-                             s.Value.SchedulerState != G9ESchedulerState.StartedStateOnPreExecution)
-                        )
-                        .Select(s => s.Value);
-
-                    G9DtScheduler[] scheduleList;
-                    lock (LockCollectionForScheduleTask)
-                    {
-                        scheduleList = query
-                            .ToArray();
-                    }
+                    scheduleList = _mainQueryForSchedulers
+                        .ToArray();
+                }
 #if NET35 || NET40
                 foreach (var scheduledItem in scheduleList)
-                    new Thread(o => { ScheduleItemHandler(scheduledItem, currentDateTime); })
-                    {
-                        IsBackground = true
-                    }.Start();
-                Thread.Sleep(1);
+                    ScheduleItemHandler(scheduledItem, _currentDateTimeForEachRound);
 #else
-                    Parallel.ForEach(scheduleList, schedulerAction =>
-                        Task.Run(() => ScheduleItemHandler(schedulerAction, currentDateTime))
-                    );
-                    await Task.Delay(1);
+                Parallel.ForEach(scheduleList, scheduledItem =>
+                    ScheduleItemHandler(scheduledItem, _currentDateTimeForEachRound));
 #endif
-
-#if NET35 || NET40
             }
-#else
-                }
-            }, CancelToken.Token, TaskCreationOptions.AttachedToParent, TaskScheduler.Current);
-            await task;
-#endif
+            finally
+            {
+                _isSchedulerRoundIsFinished = true;
+            }
         }
 
         /// <summary>
@@ -177,94 +171,136 @@ namespace G9ScheduleManagement
         /// <param name="currentDateTime">Specified current date time per each round</param>
         private static void ScheduleItemHandler(G9DtScheduler scheduledItem, DateTime currentDateTime)
         {
-            try
+            // Save the starter state
+            var startedState = scheduledItem.SchedulerState;
+
+            // Set pre execution status
+            scheduledItem.SchedulerState = G9ESchedulerState.StartedStateOnPreExecution;
+
+#if NET35 || NET40
+            var thread = new Thread(() =>
             {
-                // Set pre execution status
-                scheduledItem.SchedulerState = G9ESchedulerState.StartedStateOnPreExecution;
-
-                // Run pre-execution callbacks
-                CollectionRunnerHelper(scheduledItem.PreExecutionCallbacks, scheduledItem.Scheduler);
-
-                // Checks the condition of the count of repetitions.
-                if (scheduledItem.HasCustomCountOfRepetitions)
+#else
+            Task.Run(() =>
+            {
+#endif
+                try
                 {
-                    // The counter must reset daily if the checking type was set to per day.
-                    if (scheduledItem.RepetitionConditionType == G9ERepetitionConditionType.PerDay &&
-                        scheduledItem.CountOfRepetitionsDateTime.Day != DateTime.Now.Day)
+                    // Run pre-execution callbacks
+                    CollectionRunnerHelper(scheduledItem.PreExecutionCallbacks, scheduledItem.Scheduler);
+
+                    // Checks the condition of the count of repetitions.
+                    var isTryingRound = false;
+                    if (scheduledItem.HasCustomCountOfRepetitions)
                     {
-                        scheduledItem.CountOfRepetitionsDateTime = DateTime.Now;
-                        scheduledItem.CountOfRepetitionsCounter = 0;
+                        // Checks the condition of the count of tries
+                        if (startedState == G9ESchedulerState.HasError &&
+                            scheduledItem.HasCustomCountOfRepetitions && scheduledItem.HasCustomCountOfTries &&
+                            scheduledItem.CountOfTriesCounter < scheduledItem.CountOfTries)
+                        {
+                            if (currentDateTime - scheduledItem.LastRunDateTime < scheduledItem.GapBetweenEachTry)
+                                return;
+
+                            isTryingRound = true;
+                            unchecked
+                            {
+                                scheduledItem.CountOfTriesCounter++;
+                            }
+                        }
+                        else
+                        {
+                            // The counter must reset daily if the checking type was set to per day.
+                            if (scheduledItem.RepetitionConditionType == G9ERepetitionConditionType.PerDay &&
+                                scheduledItem.RepetitionsDateTime.Day != DateTime.Now.Day)
+                            {
+                                scheduledItem.RepetitionsDateTime = DateTime.Now;
+                                scheduledItem.CountOfRepetitionsCounter = 0;
+                            }
+
+                            if (scheduledItem.CountOfRepetitionsCounter >=
+                                scheduledItem.CountOfRepetitions)
+                            {
+                                // The repetition condition can finish the scheduler when the repetition type isn't per day.
+                                if (scheduledItem.RepetitionConditionType == G9ERepetitionConditionType.InTotal)
+                                    FinishingHelper(scheduledItem, G9EFinishingReason.FinishedByRepetitionCondition,
+                                        null);
+
+                                return;
+                            }
+                        }
                     }
 
-                    if (scheduledItem.CountOfRepetitionsCounter >=
-                        scheduledItem.CountOfRepetitions)
+                    // Checks the condition of the end date time.
+                    // Unlike the start date time, the end date time must be checked inner of the method
+                    // because if the current date time passes to the end date time, the scheduled item must be finished.
+                    if (!isTryingRound && scheduledItem.HasEndDateTime &&
+                        scheduledItem.EndDateTime < currentDateTime)
                     {
-                        // The repetition condition can finish the scheduler when the repetition type isn't per day.
-                        if (scheduledItem.RepetitionConditionType == G9ERepetitionConditionType.InTotal)
-                            FinishingHelper(scheduledItem, G9EFinishingReason.FinishedByRepetitionCondition, null);
-
+                        FinishingHelper(scheduledItem, G9EFinishingReason.FinishedByEndDateTimeCondition, null);
                         return;
                     }
-                }
 
-                // Checks the condition of the end date time.
-                // Unlike the start date time, the end date time must be checked inner of the method
-                // because if the current date time passes to the end date time, the scheduled item must be finished.
-                if (scheduledItem.HasEndDateTime &&
-                    scheduledItem.EndDateTime < currentDateTime)
-                {
-                    FinishingHelper(scheduledItem, G9EFinishingReason.FinishedByEndDateTimeCondition, null);
-                    return;
-                }
+                    // Checks the condition of the period duration between each execution.
+                    if (!isTryingRound && scheduledItem.HasCustomPeriodDuration &&
+                        currentDateTime - scheduledItem.LastRunDateTime <
+                        scheduledItem.CustomPeriodDuration)
+                        return;
 
-                // Checks the condition of the period duration between each execution.
-                if (scheduledItem.HasCustomPeriodDuration && currentDateTime - scheduledItem.LastRunDateTime <
-                    scheduledItem.CustomPeriodDuration)
-                {
+                    // Checks the condition of specified custom conditions.
+                    if (!isTryingRound && scheduledItem.ConditionFunctions != null &&
+                        scheduledItem.ConditionFunctions.Any(s => !s(scheduledItem.Scheduler)))
+                        return;
+
+                    // Set the last execution date time for this scheduler item
+                    scheduledItem.LastRunDateTime = currentDateTime;
+
+                    // Run scheduler actions
+                    CollectionRunnerHelper(scheduledItem.SchedulerActions, scheduledItem.Scheduler);
+
+                    // The scheduler action is running if all former conditions are checked and passed.
                     scheduledItem.SchedulerState = G9ESchedulerState.StartedStateOnEndExecution;
-                    return;
-                }
 
-                // Checks the condition of specified custom conditions.
-                if (scheduledItem.ConditionFunctions != null &&
-                    scheduledItem.ConditionFunctions.Any(s => !s(scheduledItem.Scheduler)))
+                    // Adds one number to the period counter during each run.
+                    unchecked
+                    {
+                        scheduledItem.CountOfRepetitionsCounter++;
+                    }
+
+                    // Reset the tries counter
+                    scheduledItem.CountOfTriesCounter = 0;
+
+                    // Run pre-execution callbacks
+                    CollectionRunnerHelper(scheduledItem.EndExecutionCallbacks, scheduledItem.Scheduler);
+                }
+                catch (Exception ex)
                 {
-                    scheduledItem.SchedulerState = G9ESchedulerState.StartedStateOnEndExecution;
-                    return;
+                    scheduledItem.SchedulerState = G9ESchedulerState.HasError;
+                    if (scheduledItem.ErrorCallbacks != null)
+                        foreach (var action in scheduledItem.ErrorCallbacks)
+                            try
+                            {
+                                action?.Invoke(scheduledItem.Scheduler, ex);
+                            }
+                            catch
+                            {
+                                // Ignore
+                            }
                 }
-
-                // Run scheduler actions
-                CollectionRunnerHelper(scheduledItem.SchedulerActions, scheduledItem.Scheduler);
-
-                // Run pre-execution callbacks
-                CollectionRunnerHelper(scheduledItem.EndExecutionCallbacks, scheduledItem.Scheduler);
-
-                // The scheduler action is running if all former conditions are checked and passed.
-                scheduledItem.SchedulerState = G9ESchedulerState.StartedStateOnEndExecution;
-
-                // Adds one number to the period counter during each run.
-                unchecked
+                finally
                 {
-                    scheduledItem.CountOfRepetitionsCounter++;
+                    if (scheduledItem.SchedulerState == G9ESchedulerState.StartedStateOnPreExecution)
+                        scheduledItem.SchedulerState = G9ESchedulerState.ConditionalRejectExecution;
                 }
 
-                // Set the last execution date time for this scheduler item
-                scheduledItem.LastRunDateTime = currentDateTime;
-            }
-            catch (Exception ex)
+#if NET35 || NET40
+            })
             {
-                scheduledItem.SchedulerState = G9ESchedulerState.HasError;
-                if (scheduledItem.ErrorCallbacks != null)
-                    foreach (var action in scheduledItem.ErrorCallbacks)
-                        try
-                        {
-                            action?.Invoke(scheduledItem.Scheduler, ex);
-                        }
-                        catch
-                        {
-                            // Ignore
-                        }
-            }
+                IsBackground = true
+            };
+            thread.Start();
+#else
+            });
+#endif
         }
 
         /// <summary>
@@ -272,11 +308,7 @@ namespace G9ScheduleManagement
         /// </summary>
         private static void OnApplicationStop(G9EDisposeReason reason)
         {
-#if NET35 || NET40
-            _cancelToken = false;
-#else
-            CancelToken.Cancel();
-#endif
+            _cancelToken = true;
 
             lock (LockCollectionForScheduleTask)
             {

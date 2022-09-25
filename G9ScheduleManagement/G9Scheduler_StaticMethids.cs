@@ -1,4 +1,5 @@
 ﻿using System;
+using G9ScheduleManagement.DataType;
 
 namespace G9ScheduleManagement
 {
@@ -19,10 +20,10 @@ namespace G9ScheduleManagement
         /// </param>
         /// <returns>A scheduler object</returns>
         public static G9Scheduler GenerateCustomEvent(Func<G9Scheduler, bool> condition, Action<G9Scheduler> callback,
-            TimeSpan durationPeriodOfChecking = default)
+            G9DtGap durationPeriodOfChecking = default)
         {
-            if (Equals(durationPeriodOfChecking, default(TimeSpan)))
-                durationPeriodOfChecking = TimeSpan.FromSeconds(1);
+            if (Equals(durationPeriodOfChecking, default(G9DtGap)))
+                durationPeriodOfChecking = G9DtGap.OneSec;
 
             return new G9Scheduler()
                 .AddSchedulerAction(callback)
@@ -54,7 +55,7 @@ namespace G9ScheduleManagement
         /// <returns>A scheduler object</returns>
         public static G9Scheduler GenerateCustomEventOnValueChange<TSource, TResult>(TSource source,
             Func<TSource, TResult> selector, Action<TResult, TResult> callback,
-            TimeSpan durationPeriodOfChecking = default)
+            G9DtGap durationPeriodOfChecking = default)
         {
             // Storing the first value for checking.
             var oldValue = selector(source);
